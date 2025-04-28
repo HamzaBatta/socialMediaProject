@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\PostController;
 use App\Mail\Emails;
 
 use App\Models\User;
@@ -36,3 +37,5 @@ Route::post('/verify-code', [AuthController::class, 'verifyCode']);
 
 Route::post('/request-reset-code', [AuthController::class, 'requestResetCode']);
 Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
+
+
