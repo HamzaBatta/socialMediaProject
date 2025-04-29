@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PostController;
 use App\Mail\Emails;
 use Illuminate\Support\Facades\Mail;
@@ -37,4 +38,8 @@ Route::get('/posts/{id}', [PostController::class, 'show']);
 Route::post('/posts/{id}', [PostController::class, 'update']);
 Route::delete('/posts/{id}', [PostController::class, 'destroy']);
 
+Route::get('/posts/{postId}/media', [MediaController::class, 'index']);
+Route::post('/posts/{postId}/media', [MediaController::class, 'store']);
+Route::get('/posts/{postId}/media/{mediaId}', [MediaController::class, 'show']);
+Route::delete('/posts/{postId}/media/{mediaId}', [MediaController::class, 'destroy']);
 

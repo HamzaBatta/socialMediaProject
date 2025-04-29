@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
-use Illuminate\Container\Attributes\Storage;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 
 class PostController extends Controller
@@ -46,25 +46,12 @@ class PostController extends Controller
     {
         $request->validate([
             'text' => 'nullable|string',
-            'media.*' => 'file|mimes:jpeg,png,jpg,mp4,mov,avi|max:20480',
         ]);
 
         $post = Post::create([
             'user_id' => auth()->id(),
             'text' => $request->text,
         ]);
-
-        if ($request->hasFile('media')) {
-            foreach ($request->file('media') as $file) {
-                $type = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
-                $path = $file->store('media', 'public');
-
-                $post->media()->create([
-                    'type' => $type,
-                    'path' => $path,
-                ]);
-            }
-        }
 
         return response()->json(['message' => 'Post created successfully', 'post_id' => $post->id], 201);
     }
