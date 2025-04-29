@@ -1,19 +1,11 @@
 <?php
 
-use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\PostController;
 use App\Mail\Emails;
-
-use App\Models\User;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
-use Illuminate\Auth\Notifications\ResetPassword as ResetPasswordNotification;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\GoogleAuthController;
-use Illuminate\Support\Str;
 
 
 Route::get('/send',function(){
@@ -37,5 +29,12 @@ Route::post('/verify-code', [AuthController::class, 'verifyCode']);
 
 Route::post('/request-reset-code', [AuthController::class, 'requestResetCode']);
 Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
+
+
+Route::get('/posts', [PostController::class, 'index']);
+Route::post('/posts', [PostController::class, 'store']);
+Route::get('/posts/{id}', [PostController::class, 'show']);
+Route::post('/posts/{id}', [PostController::class, 'update']);
+Route::delete('/posts/{id}', [PostController::class, 'destroy']);
 
 

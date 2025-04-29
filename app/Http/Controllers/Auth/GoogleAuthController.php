@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Auth;
 
-use Illuminate\Support\Str;
-use Laravel\Socialite\Facades\Socialite;
+use App\Http\Controllers\Controller;
 use App\Models\User;
+use Laravel\Socialite\Facades\Socialite;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class GoogleAuthController extends Controller
