@@ -2,42 +2,60 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Str;
-use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class GoogleAuthController extends Controller
 {
-    public function redirectToGoogle()
+    public function handleGoogleToken(Request $request)
     {
-        $url = Socialite::driver('google')
-                        ->stateless()
-                        ->redirect()
-                        ->getTargetUrl();
+        $idToken = $request->input('id_token');
 
-        return response()->json(['url' => $url]);
-    }
+        // Verify the token with Google
+        $googleResponse = Http::get("https://oauth2.googleapis.com/tokeninfo", [
+            'id_token' => $idToken,
+        ]);
 
-    public function handleGoogleCallback()
-    {
-        $googleUser = Socialite::driver('google')->stateless()->user();
+        if ($googleResponse->failed() || !isset($googleResponse['email'])) {
+            return response()->json(['error' => 'Invalid token'], 401);
+        }
 
-        $user = User::updateOrCreate(
-            ['email' => $googleUser->getEmail()],
-            [
-                'name' => $googleUser->getName(),
-                'google_id' => $googleUser->getId(),
-                //'avatar' => $googleUser->getAvatar(),
-            ]
-        );
+        $googleUser = $googleResponse->json();
+
+        // Check if user already exists
+        $user = User::where('email', $googleUser['email'])->first();
+        $isNewUser = false;
+
+        if (!$user) {
+            // New user, create and verify
+            $user = User::create([
+                'name' => isset( $googleUser['name'] ) ? $googleUser['name']
+                    : 'Unknown',
+                'email' => $googleUser['email'],
+                'google_id' => $googleUser['sub'],
+                'email_verified_at' => Carbon::now(),
+            ]);
+
+            $isNewUser = true;
+        } else {
+            // Existing user, update info if needed
+            $user->update([
+                'name' => isset( $googleUser['name'] ) ? $googleUser['name']
+                    : $user->name,
+                'google_id' => $googleUser['sub'],
+            ]);
+        }
+
+        // Create JWT token
         $token = JWTAuth::fromUser($user);
 
         return response()->json([
-            'message' => 'Login successful',
+            'message' => $isNewUser ? 'Registered successfully' : 'Login successful',
             'token' => $token,
-            'user' => $user
+            'user' => $user,
         ]);
     }
 }
-
