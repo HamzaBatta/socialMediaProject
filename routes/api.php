@@ -1,11 +1,11 @@
 <?php
-
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\GoogleAuthController;
+
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\LikeController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PostController;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 
 
@@ -47,5 +47,7 @@ Route::post('/comments', [CommentController::class, 'store']);
 Route::get('/comments/{id}', [CommentController::class, 'show']);
 Route::post('/comments/{id}', [CommentController::class, 'update']);
 Route::delete('/comments/{id}', [CommentController::class, 'destroy']);
+
+Route::post('/likes', [LikeController::class, 'toggle']);
 
 
