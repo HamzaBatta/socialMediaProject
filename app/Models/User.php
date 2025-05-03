@@ -80,4 +80,46 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
     {
         return $this->morphOne(Media::class, 'mediable'); // one-to-one polymorphic :contentReference[oaicite:8]{index=8}
     }
+    /**
+     * createing the follow relationship between users
+     * and there are many functions : 
+     * 1- the following to know what users we are following 
+     * 2- the followers to know what users are following us
+     * 3- is following (USER) to check if we follow this user (will help us in the privacy policies)
+     * 4- is followed by (USER) to ckeck if this user follow us (will help us in the privacy policies)
+     */
+
+    // Users that this user is following
+    public function following(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            User::class,
+            'user_follows',
+            'follower_id',
+            'followee_id'
+        )->withTimestamps();
+    }
+
+    // Users that are following this user
+    public function followers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            User::class,
+            'user_follows',
+            'followee_id',
+            'follower_id'
+        )->withTimestamps();
+    }
+
+    // Check if the user is following another user
+    public function isFollowing(User $user): bool
+    {
+        return $this->following()->where('followee_id', $user->id)->exists();
+    }
+
+    // Check if the user is followed by another user
+    public function isFollowedBy(User $user): bool
+    {
+        return $this->followers()->where('follower_id', $user->id)->exists();
+    }
 }
