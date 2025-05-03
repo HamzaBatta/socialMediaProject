@@ -88,7 +88,7 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
      * 3- is following (USER) to check if we follow this user (will help us in the privacy policies)
      * 4- is followed by (USER) to ckeck if this user follow us (will help us in the privacy policies)
      */
-
+    
     // Users that this user is following
     public function following(): BelongsToMany
     {
@@ -97,29 +97,71 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
             'user_follows',
             'follower_id',
             'followee_id'
-        )->withTimestamps();
+            )->withTimestamps();
     }
-
-    // Users that are following this user
+        
+        // Users that are following this user
     public function followers(): BelongsToMany
+        {
+            return $this->belongsToMany(
+                User::class,
+                'user_follows',
+                'followee_id',
+                'follower_id'
+                )->withTimestamps();
+        }
+            
+            // Check if the user is following another user
+        public function isFollowing(User $user): bool
+        {
+            return $this->following()->where('followee_id', $user->id)->exists();
+        }
+            
+            // Check if the user is followed by another user
+        public function isFollowedBy(User $user): bool
+        {
+            return $this->followers()->where('follower_id', $user->id)->exists();
+        }
+        /**
+         * createing the block relationship between users
+         * and there are many functions : 
+         * 1- the blocking to know what users we are blocking 
+         * 2- the blockers to know what users are blocking us
+         * 3- is blocking (USER) to check if we block this user (will help us in the privacy policies)
+         * 4- is blocked by (USER) to ckeck if this user block us (will help us in the privacy policies)
+         */
+         // Users that this user has blocked
+    public function blockedUsers(): BelongsToMany
     {
         return $this->belongsToMany(
             User::class,
-            'user_follows',
-            'followee_id',
-            'follower_id'
+            'user_blocks',
+            'blocker_id',
+            'blocked_id'
         )->withTimestamps();
     }
 
-    // Check if the user is following another user
-    public function isFollowing(User $user): bool
+    // Users who have blocked this user
+    public function blockedByUsers(): BelongsToMany
     {
-        return $this->following()->where('followee_id', $user->id)->exists();
+        return $this->belongsToMany(
+            User::class,
+            'user_blocks',
+            'blocked_id',
+            'blocker_id'
+        )->withTimestamps();
     }
 
-    // Check if the user is followed by another user
-    public function isFollowedBy(User $user): bool
+    // Check if the user has blocked another user
+    public function hasBlocked(User $user): bool
     {
-        return $this->followers()->where('follower_id', $user->id)->exists();
+        return $this->blockedUsers()->where('blocked_id', $user->id)->exists();
+    }
+
+    // Check if the user is blocked by another user
+    public function isBlockedBy(User $user): bool
+    {
+        return $this->blockedByUsers()->where('blocker_id', $user->id)->exists();
     }
 }
+        
