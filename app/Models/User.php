@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class User extends Authenticatable implements JWTSubject,MustVerifyEmail
 {
@@ -164,4 +166,3 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
         return $this->blockedByUsers()->where('blocker_id', $user->id)->exists();
     }
 }
-        

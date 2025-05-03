@@ -53,4 +53,5 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/likes', [LikeController::class, 'toggle']);
 });
 
+require __DIR__ . '/Account/follow.php';
 
