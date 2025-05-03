@@ -75,4 +75,9 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
     {
         return $this->hasMany(Comment::class);
     }
+
+    public function media(): MorphOne
+    {
+        return $this->morphOne(Media::class, 'mediable'); // one-to-one polymorphic :contentReference[oaicite:8]{index=8}
+    }
 }

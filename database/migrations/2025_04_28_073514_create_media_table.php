@@ -16,6 +16,7 @@ return new class extends Migration
             $table->id();
             $table->string('path');
             $table->enum('type',['image','video']);
+            $table->nullableMorphs('mediable');
             $table->timestamps();
         });
     }
