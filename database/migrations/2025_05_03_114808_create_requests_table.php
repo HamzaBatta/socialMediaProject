@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Post;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,10 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('media', function (Blueprint $table) {
+        Schema::create('requests', function (Blueprint $table) {
             $table->id();
-            $table->string('path');
-            $table->enum('type',['image','video']);
+            $table->enum('state', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->timestamp('requested_at');
+            $table->timestamp('responded_at')->nullable();
             $table->timestamps();
         });
     }
@@ -25,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('media');
+        Schema::dropIfExists('requests');
     }
 };
