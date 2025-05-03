@@ -24,6 +24,7 @@ return new class extends Migration
 
             // When the block happened
             $table->timestamp('blocked_at')->useCurrent();  // Auto‑timestamp :contentReference[oaicite:2]{index=2}
+            $table->timestamps();
 
             // Prevent duplicate blocks
             $table->primary(['blocker_id', 'blocked_id']);

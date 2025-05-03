@@ -21,6 +21,7 @@ return new class extends Migration
                   ->cascadeOnDelete();
 
             $table->timestamp('followed_at')->useCurrent();
+            $table->timestamps();
 
             $table->primary(['follower_id', 'followee_id']);
         });

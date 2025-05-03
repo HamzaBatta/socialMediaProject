@@ -6,24 +6,36 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
+
+
 class FollowController extends Controller
 {
+
+
+
     public function follow(Request $request)
     {
-        $targetUserId = $request->route('user');
-        $targetUser = User::findOrFail($targetUserId);
-        $currentUser =User::findOrFail($targetUserId);
-
+        $currentUser = User::find($request->input('senderId'));
+        $targetUser = User::find($request->input('targetId'));
+        // 2. Prevent self-follow
+        
         if ($currentUser->id === $targetUser->id) {
             return response()->json(['message' => 'You cannot follow yourself.'], 400);
         }
-
-        if (!$currentUser->isFollowing($targetUser)) {
-            $currentUser->following()->attach($targetUser->id);
-            return response()->json(['message' => 'User followed successfully.']);
+    
+        // 3. Attach if not already following
+        if (! $currentUser->isFollowing($targetUser)) {
+            try {
+                $currentUser->following()->attach($targetUser->id);
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Dump the SQL error code & message:
+                dd($e->getCode(), $e->getMessage());
+            }
+            return response()->json(['message' => 'User followed successfully.'], 200);
         }
-
-        return response()->json(['message' => 'You are already following this user.'], 400);
+    
+        // 4. Already following
+        return response()->json(['message' => 'You are already following this user.'], 409);
     }
 
     public function unfollow(Request $request)
