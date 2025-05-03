@@ -9,10 +9,10 @@ class Media extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['post_id', 'path', 'type'];
+    protected $fillable = [ 'path', 'type'];
 
-    public function post()
+    public function mediable(): MorphTo
     {
-        return $this->belongsTo(Post::class);
+        return $this->morphTo(); 
     }
 }

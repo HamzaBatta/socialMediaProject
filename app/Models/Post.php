@@ -16,8 +16,12 @@ class Post extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function media(){
-        return $this->hasMany(Media::class);
+   /**
+     * Get all media items for the post.
+     */
+    public function media(): MorphMany
+    {
+        return $this->morphMany(Media::class, 'mediable'); // one-to-many polymorphic :contentReference[oaicite:6]{index=6}
     }
 
     public function likes()

@@ -9,4 +9,9 @@ class Group extends Model
 {
     /** @use HasFactory<\Database\Factories\GroupFactory> */
     use HasFactory;
+
+    public function media(): MorphOne
+    {
+        return $this->morphOne(Media::class, 'mediable'); // one-to-one polymorphic :contentReference[oaicite:8]{index=8}
+    }
 }
