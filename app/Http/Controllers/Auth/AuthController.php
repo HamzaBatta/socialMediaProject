@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Auth;
 
 
+use App\Http\Controllers\Controller;
 use App\Mail\ResetPasswordEmails;
 use App\Mail\VerifyEmails;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
-
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
