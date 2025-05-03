@@ -2,6 +2,7 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\GoogleAuthController;
 
+use App\Http\Controllers\FollowController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\MediaController;
@@ -52,6 +53,8 @@ Route::middleware('auth:api')->group(function () {
     // Likes
     Route::post('/likes', [LikeController::class, 'toggle']);
 });
+
+// Route::post('/users/follow', [FollowController::class, 'follow']);
 
 require __DIR__ . '/Account/follow.php';
 
