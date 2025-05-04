@@ -71,12 +71,20 @@ class PostController extends Controller
         $mediaFiles = $request->allFiles('media');
 
         foreach ((array) $mediaFiles as $file) {
-            $path = $file->store('posts', 'public');
-            $type = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
-            $post->media()->create([
-                'path' => $path,
-                'type' => $type,
-            ]);
+            try {
+                $path = $file->store('posts', 'public');
+                $type = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
+                $media = $post->media()->create([
+                    'path' => $path,
+                    'type' => $type,
+                ]);
+            } catch (\Exception $e) {
+                $post->delete();
+                $post->media()->delete();
+                return response()->json([
+                    'message' => 'Post not created'
+                ], 400);
+            }
         }
 
         return response()->json([
