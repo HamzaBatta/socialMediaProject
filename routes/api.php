@@ -7,6 +7,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\StatusController;
 use Illuminate\Support\Facades\Route;
 
 // {====== Public Routes ======}
@@ -20,14 +21,22 @@ Route::post('/request-reset-code', [AuthController::class, 'requestResetCode']);
 Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
 
 // {====== Public Read-Only Routes ======}
+
+//posts
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/{id}', [PostController::class, 'show']);
 
+//media
 Route::get('/posts/{postId}/media', [MediaController::class, 'index']);
 Route::get('/posts/{postId}/media/{mediaId}', [MediaController::class, 'show']);
 
+//comments
 Route::get('/comments', [CommentController::class, 'index']);  // pass post_id or comment_id
 Route::get('/comments/{id}', [CommentController::class, 'show']);
+
+//statuses
+Route::get('/statuses', [StatusController::class, 'index']);
+Route::get('/statuses/{id}', [StatusController::class, 'show']);
 
 
 // {====== Protected Routes (auth:api) ======}
@@ -52,6 +61,11 @@ Route::middleware('auth:api')->group(function () {
 
     // Likes
     Route::post('/likes', [LikeController::class, 'toggle']);
+
+    //Statuses
+    Route::post('/statuses',[StatusController::class,'store']);
+    Route::post('/statuses/{id}', [StatusController::class, 'update']);
+    Route::delete('/statuses/{id}', [StatusController::class, 'destroy']);
 });
 
 // Route::post('/users/follow', [FollowController::class, 'follow']);

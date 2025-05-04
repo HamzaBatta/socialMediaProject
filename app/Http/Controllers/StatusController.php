@@ -5,62 +5,93 @@ namespace App\Http\Controllers;
 use App\Models\Status;
 use App\Http\Requests\StoreStatusRequest;
 use App\Http\Requests\UpdateStatusRequest;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 
 class StatusController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $statuses = Status::where('user_id', $request->user_id)
+                          ->where('expiration_date', '>', now())
+                          ->with('media')
+                          ->latest()
+                          ->get();
+
+        return response()->json([
+            'statuses' => $statuses->map(function ($status) {
+                return [
+                    'id' => $status->id,
+                    'text' => $status->text,
+                    'expiration_date' => $status->expiration_date,
+                    'media' => $status->media ? [
+                        'id' => $status->media->id,
+                        'type' => $status->media->type,
+                        'url' => url("storage/{$status->media->path}"),
+                    ] : null,
+                    'created_at' => $status->created_at,
+                ];
+            }),
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function store(Request $request)
     {
-        //
+        $request->validate([
+            'text' => 'nullable|string',
+            'media' => 'nullable|file',
+        ]);
+        $status = Status::create([
+            'user_id' => auth()->id(),
+            'text' => $request->text,
+            'expiration_date' => now()->addDay(),
+        ]);
+
+        if ($request->hasFile('media')) {
+            $file = $request->file('media');
+            $path = $file->store('statuses', 'public');
+            $type = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
+            $status->media()->create([
+                'path' => $path,
+                'type' => $type,
+            ]);
+        }
+
+        return response()->json(['message' => 'Status created successfully', 'status_id' => $status->id], 201);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreStatusRequest $request)
+    public function show($id)
     {
-        //
+        $status = Status::with('media')->findOrFail($id);
+
+        return response()->json([
+            'id' => $status->id,
+            'text' => $status->text,
+            'expiration_date' => $status->expiration_date,
+            'media' => $status->media ? [
+                'id' => $status->media->id,
+                'type' => $status->media->type,
+                'url' => url("storage/{$status->media->path}"),
+            ] : null,
+            'created_at' => $status->created_at,
+        ]);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Status $status)
+    public function destroy($id)
     {
-        //
-    }
+        $status = Status::where('user_id', auth()->id())->findOrFail($id);
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Status $status)
-    {
-        //
-    }
+        if ($status->media && Storage::disk('public')->exists($status->media->path)) {
+            Storage::disk('public')->delete($status->media->path);
+            $status->media->delete();
+        }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateStatusRequest $request, Status $status)
-    {
-        //
-    }
+        $status->delete();
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Status $status)
-    {
-        //
+        return response()->json(['message' => 'Status deleted successfully']);
     }
 }
