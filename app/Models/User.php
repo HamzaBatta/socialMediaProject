@@ -10,6 +10,7 @@ use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class User extends Authenticatable implements JWTSubject,MustVerifyEmail
 {
@@ -164,5 +165,13 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
     public function isBlockedBy(User $user): bool
     {
         return $this->blockedByUsers()->where('blocker_id', $user->id)->exists();
+    }
+
+
+
+
+    public function requests(): MorphMany
+    {
+        return $this->morphMany(Request::class, 'requestable');
     }
 }

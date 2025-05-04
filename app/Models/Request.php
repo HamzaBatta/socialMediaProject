@@ -17,4 +17,9 @@ class Request extends Model
         return $this->morphTo();
     }
 
+    public function sender()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'user_id');
+    }
+
 }

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Request;
+use App\Models\User;
 use App\Http\Requests\StoreRequestRequest;
 use App\Http\Requests\UpdateRequestRequest;
+use Illuminate\Support\Facades\Auth;
 
 class RequestController extends Controller
 {
@@ -37,7 +39,18 @@ class RequestController extends Controller
      */
     public function show(Request $request)
     {
-        //
+        $userId = Auth::id();
+        $user = User::find($userId);
+
+        $pendingRequests = $user
+            ->requests()             
+            ->where('state', 'pending')
+            ->with('sender')        
+            ->get();
+
+        return response()->json([
+            'pending_requests' => $pendingRequests
+        ]);
     }
 
     /**
