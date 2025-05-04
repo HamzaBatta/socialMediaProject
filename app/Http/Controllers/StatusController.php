@@ -7,6 +7,8 @@ use App\Http\Requests\StoreStatusRequest;
 use App\Http\Requests\UpdateStatusRequest;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use App\Models\User; // Added import for User model
+use Illuminate\Support\Facades\Auth; // Added import for Auth facade
 
 class StatusController extends Controller
 {
@@ -46,7 +48,7 @@ class StatusController extends Controller
             'media' => 'nullable|file',
         ]);
         $status = Status::create([
-            'user_id' => auth()->id(),
+            'user_id' => Auth::id(), // Changed to use Auth facade
             'text' => $request->text,
             'expiration_date' => now()->addDay(),
         ]);
@@ -64,9 +66,14 @@ class StatusController extends Controller
         return response()->json(['message' => 'Status created successfully', 'status_id' => $status->id], 201);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $status = Status::with('media')->findOrFail($id);
+
+        // Changed to handle the request or get the user from the auth API
+        $user = Auth::id(); // Assuming the user is authenticated and using the auth API
+
+        $this->authorize('view', $user, $status); // Assuming there's a policy for authorization
 
         return response()->json([
             'id' => $status->id,
@@ -83,7 +90,7 @@ class StatusController extends Controller
 
     public function destroy($id)
     {
-        $status = Status::where('user_id', auth()->id())->findOrFail($id);
+        $status = Status::where('user_id', Auth::id())->findOrFail($id); // Changed to use Auth facade
 
         if ($status->media && Storage::disk('public')->exists($status->media->path)) {
             Storage::disk('public')->delete($status->media->path);
