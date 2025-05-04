@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class PostController extends Controller
 {
@@ -14,7 +16,14 @@ class PostController extends Controller
             'user_id' => 'required|exists:users,id',
         ]);
 
-        $authUser = auth()->id();
+        $authUser = Auth::id();
+
+        $user = User::find($request->user_id);
+        // this line will authorize the user in one of three cases 
+        // Case 1: Public user profile 
+        // Case 2: Private user but user is the owner
+        // Case 3: Private user and user follows the owner
+        $this->authorize('viewAny',$authUser, $user);
 
         $posts = Post::where('user_id', $request->user_id)
                      ->with(['media'])
@@ -53,7 +62,7 @@ class PostController extends Controller
         ]);
 
         $post = Post::create([
-            'user_id' => auth()->id(),
+            'user_id' => Auth::id(),
             'text' => $request->text,
             'group_id' => $request->group_id,
             'privacy' => $request->privacy,
@@ -78,11 +87,17 @@ class PostController extends Controller
 
     public function show($id, Request $request)
     {
-        $authUser = auth()->id();
+        $authUser = Auth::id();
 
         $post = Post::with(['media'])
                     ->withCount(['likes', 'comments'])
                     ->findOrFail($id);
+
+        // this line will authorize the user in one of three cases 
+        // Case 1: Public post
+        // Case 2: Private post but user is the owner
+        // Case 3: Private post and user follows the owner
+        $this->authorize('view',$authUser, $post);
 
         return response()->json([
             'id' => $post->id,
@@ -104,7 +119,7 @@ class PostController extends Controller
 
     public function update(Request $request, $id)
     {
-        $post = Post::where('user_id', auth()->id())->findOrFail($id);
+        $post = Post::where('user_id', Auth::id())->findOrFail($id);
 
         $request->validate([
             'text' => 'nullable|string',
@@ -119,7 +134,7 @@ class PostController extends Controller
 
     public function destroy($id)
     {
-        $post = Post::where('user_id', auth()->id())->findOrFail($id);
+        $post = Post::where('user_id', Auth::id())->findOrFail($id);
 
         foreach ($post->media as $media) {
             if (Storage::disk('public')->exists($media->path)) {

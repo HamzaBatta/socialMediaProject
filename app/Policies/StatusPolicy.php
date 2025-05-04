@@ -21,7 +21,20 @@ class StatusPolicy
      */
     public function view(User $user, Status $status): bool
     {
-        return false;
+        // get the user with the status
+        $owner = User::find($status->user_id);
+        // Case 1: Public user 
+        if (!$owner->is_private) {
+            return true;
+        }
+
+        // Case 2: Private status but user is the owner
+        if ($user->id === $status->user_id) {
+            return true;
+        }
+
+        // Case 3: Private status and user follows the owner
+        return $user->isFollowing($owner);
     }
 
     /**
