@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('requests', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('user_id')->constrained();
             $table->enum('state', ['pending', 'approved', 'rejected'])->default('pending');
             $table->timestamp('requested_at');
             $table->timestamp('responded_at')->nullable();

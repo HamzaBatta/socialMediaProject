@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Group extends Model
 {
-    /** @use HasFactory<\Database\Factories\GroupFactory> */
     use HasFactory;
 
     protected $fillable = ['name', 'privacy', 'creator_id'];
@@ -19,6 +21,11 @@ class Group extends Model
 
     public function media(): MorphOne
     {
-        return $this->morphOne(Media::class, 'mediable'); // one-to-one polymorphic :contentReference[oaicite:8]{index=8}
+        return $this->morphOne(Media::class, 'mediable'); 
+    }
+
+    public function requests(): MorphMany
+    {
+        return $this->morphMany(Request::class, 'requestable');
     }
 }
