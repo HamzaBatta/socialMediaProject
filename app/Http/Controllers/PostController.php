@@ -28,6 +28,7 @@ class PostController extends Controller
                              'likes_count' => $post->likes_count,
                              'comments_count' => $post->comments_count,
                              'is_liked' => $post->isLikedBy($authUser),
+                             'group_id' =>$post->group_id,
                              'media' => $post->media->map(function ($media) {
                                  return [
                                      'id' => $media->id,
@@ -46,14 +47,33 @@ class PostController extends Controller
     {
         $request->validate([
             'text' => 'nullable|string',
+            'group_id' => 'nullable|exists:groups,id',
+            'privacy' => 'required|in:public,private',
+            'media' => 'nullable',
         ]);
 
         $post = Post::create([
             'user_id' => auth()->id(),
             'text' => $request->text,
+            'group_id' => $request->group_id,
+            'privacy' => $request->privacy,
         ]);
 
-        return response()->json(['message' => 'Post created successfully', 'post_id' => $post->id], 201);
+        $mediaFiles = $request->allFiles('media');
+
+        foreach ((array) $mediaFiles as $file) {
+            $path = $file->store('posts', 'public');
+            $type = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
+            $post->media()->create([
+                'path' => $path,
+                'type' => $type,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Post created successfully',
+            'post_id' => $post->id,
+        ], 201);
     }
 
     public function show($id, Request $request)
@@ -70,6 +90,7 @@ class PostController extends Controller
             'likes_count' => $post->likes_count,
             'comments_count' => $post->comments_count,
             'is_liked' => $post->isLikedBy($authUser),
+            'group_id' => $post->group_id,
             'media' => $post->media->map(function ($media) {
                 return [
                     'id' => $media->id,

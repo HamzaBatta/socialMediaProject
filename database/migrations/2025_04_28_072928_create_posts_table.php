@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignIdFor(User::class)->constrained()->onDelete('cascade');
             $table->text('text')->nullable();
             $table->foreignId('group_id')->nullable()->constrained()->onDelete('cascade');
+            $table->enum('privacy', ['public', 'private'])->default('public');
             $table->integer('likes_count')->default(0);
             $table->integer('comments_count')->default(0);
             $table->timestamps();

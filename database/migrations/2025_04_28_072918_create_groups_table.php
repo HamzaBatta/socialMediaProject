@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('groups', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->boolean('is_private')->default(false);
+            $table->enum('privacy', ['public', 'private'])->default('public');
             $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
             $table->timestamps();
         });

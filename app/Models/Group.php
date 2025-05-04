@@ -10,7 +10,7 @@ class Group extends Model
     /** @use HasFactory<\Database\Factories\GroupFactory> */
     use HasFactory;
 
-    protected $fillable = ['name', 'is_private', 'creator_id'];
+    protected $fillable = ['name', 'privacy', 'creator_id'];
 
     public function creator(): BelongsTo
     {
