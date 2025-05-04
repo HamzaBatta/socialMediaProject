@@ -9,4 +9,7 @@ class Request extends Model
 {
     /** @use HasFactory<\Database\Factories\RequestFactory> */
     use HasFactory;
+
+    protected $fillable = ['state', 'requested_at', 'responded_at'];
+
 }

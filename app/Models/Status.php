@@ -9,6 +9,12 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
 class Status extends Model
 {
     use HasFactory;
+    protected $fillable = ['user_id', 'text', 'expires_at', 'is_active'];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function media(): MorphOne
     {
