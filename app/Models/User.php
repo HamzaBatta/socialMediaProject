@@ -24,9 +24,12 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
         'google_id',
+        'bio',
+        'is_private'
     ];
     public function getJWTIdentifier()
     {
@@ -85,13 +88,13 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
     }
     /**
      * createing the follow relationship between users
-     * and there are many functions : 
-     * 1- the following to know what users we are following 
+     * and there are many functions :
+     * 1- the following to know what users we are following
      * 2- the followers to know what users are following us
      * 3- is following (USER) to check if we follow this user (will help us in the privacy policies)
      * 4- is followed by (USER) to ckeck if this user follow us (will help us in the privacy policies)
      */
-    
+
     // Users that this user is following
     public function following(): BelongsToMany
     {
@@ -102,7 +105,7 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
             'followee_id'
             )->withTimestamps();
     }
-        
+
         // Users that are following this user
     public function followers(): BelongsToMany
         {
@@ -113,13 +116,13 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
                 'follower_id'
                 )->withTimestamps();
         }
-            
+
             // Check if the user is following another user
         public function isFollowing(User $user): bool
         {
             return $this->following()->where('followee_id', $user->id)->exists();
         }
-            
+
             // Check if the user is followed by another user
         public function isFollowedBy(User $user): bool
         {
@@ -127,8 +130,8 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
         }
         /**
          * createing the block relationship between users
-         * and there are many functions : 
-         * 1- the blocking to know what users we are blocking 
+         * and there are many functions :
+         * 1- the blocking to know what users we are blocking
          * 2- the blockers to know what users are blocking us
          * 3- is blocking (USER) to check if we block this user (will help us in the privacy policies)
          * 4- is blocked by (USER) to ckeck if this user block us (will help us in the privacy policies)

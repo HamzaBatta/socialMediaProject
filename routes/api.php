@@ -1,4 +1,6 @@
 <?php
+
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\GoogleAuthController;
@@ -67,6 +69,12 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/statuses',[StatusController::class,'store']);
     Route::post('/statuses/{id}', [StatusController::class, 'update']);
     Route::delete('/statuses/{id}', [StatusController::class, 'destroy']);
+
+    //User
+    Route::post('/user/username', [UserController::class, 'updateUsername']);
+    Route::post('/user/bio', [UserController::class, 'updateBio']);
+    Route::post('/user/privacy', [UserController::class, 'togglePrivacy']);
+    Route::get('/user/{id}', [UserController::class, 'show']);
 });
 
 Route::middleware('auth:api')->prefix('groups')->group(function () {
