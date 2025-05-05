@@ -12,18 +12,39 @@ class PostController extends Controller
 {
     public function index(Request $request)
     {
-        $request->validate([
+        $validatedData = $request->validate([
             'user_id' => 'required|exists:users,id',
+        ], [], [
+            'user_id' => 'user_id',
         ]);
 
         $authUser = Auth::id();
-
-        $user = User::find($request->user_id);
+        $authUser = User::find($authUser);
+        $authorize = false;
+        $message = 'i did not enter any conditions';
+        $user = User::find($validatedData['user_id']);
+        $authorize =  $authUser->isFollowing($user);
+        $message = $authorize;
         // this line will authorize the user in one of three cases 
         // Case 1: Public user profile 
         // Case 2: Private user but user is the owner
         // Case 3: Private user and user follows the owner
-        $this->authorize('viewAny',$authUser, $user);
+        //$this->authorize('viewAny',$authUser, $user);
+        if (!$user->is_private) {
+            $authorize = true;
+            $message = 'the user is public';
+        }
+    
+        // Case 2: Profile is private but user is viewing their own profile
+        if ($user->id === $authUser->id) {
+            $authorize = true;
+            $message = 'you are asking yourself';
+        }
+    
+        // Case 3: Profile is private and requesting user follows the profile owner
+        if(!$authorize){
+            return response()->json(['message' => $message],403);
+        }
 
         $posts = Post::where('user_id', $request->user_id)
                      ->with(['media'])
@@ -49,26 +70,25 @@ class PostController extends Controller
                          ];
                      });
 
-        return response()->json(['posts' => $posts]);
+        return response()->json(['posts' => $posts , 'message' => $message]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'text' => 'nullable|string',
-            'group_id' => 'nullable|exists:groups,id',
-            'privacy' => 'required|in:public,private',
-            'media' => 'nullable',
+            'text'      => 'nullable|string',
+            'group_id'  => 'nullable|exists:groups,id',
+            'media'     => 'nullable|array',        
+            'media.*'   => 'file|mimes:jpeg,png,gif,mp4,mov|max:20480',
         ]);
 
         $post = Post::create([
             'user_id' => Auth::id(),
             'text' => $request->text,
             'group_id' => $request->group_id,
-            'privacy' => $request->privacy,
         ]);
 
-        $mediaFiles = $request->allFiles('media');
+        $mediaFiles = $request->file('media', []);
 
         foreach ((array) $mediaFiles as $file) {
             try {
@@ -89,7 +109,19 @@ class PostController extends Controller
 
         return response()->json([
             'message' => 'Post created successfully',
-            'post_id' => $post->id,
+            'post' => [
+                'id' => $post->id,
+                'text' => $post->text,
+                'group_id' => $post->group_id,
+                'media' => $post->media->map(function ($media) {
+                    return [
+                        'id' => $media->id,
+                        'type' => $media->type,
+                        'url' => url("storage/{$media->path}"),
+                    ];
+                }),
+                'created_at' => $post->created_at,
+            ],
         ], 201);
     }
 

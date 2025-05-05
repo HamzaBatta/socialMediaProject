@@ -14,7 +14,12 @@ class PostPolicy
     public function viewAny(User $asker , User $owner): bool
     {
         // Case 1: Profile is public
-        if ($owner->privacy === 'public') {
+        $ownerId = $owner->id;
+        $ownerFromDb = User::find($ownerId);
+        $askerId = $asker->id;
+        $askerFromDb = User::find($askerId);
+        dd($ownerId , $askerId);
+        if (!$ownerFromDb->is_private) {
             return true;
         }
     
@@ -24,7 +29,7 @@ class PostPolicy
         }
     
         // Case 3: Profile is private and requesting user follows the profile owner
-        return $asker->isFollowing($owner);
+        return $askerFromDb->isFollowing($ownerFromDb);
     }
 
     /**

@@ -26,7 +26,7 @@ Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
 // {====== Public Read-Only Routes ======}
 
 //posts
-Route::get('/posts', [PostController::class, 'index']);
+
 Route::get('/posts/{id}', [PostController::class, 'show']);
 
 //media
@@ -49,6 +49,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // Posts
+    Route::get('/posts', [PostController::class, 'index']);
     Route::post('/posts', [PostController::class, 'store']);
     Route::post('/posts/{id}', [PostController::class, 'update']);
     Route::delete('/posts/{id}', [PostController::class, 'destroy']);
