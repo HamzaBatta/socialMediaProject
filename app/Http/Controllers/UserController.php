@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\Routing\Route;
 
 class UserController extends Controller
 {
@@ -12,6 +13,12 @@ class UserController extends Controller
     public function show($id)
     {
         $user = User::findOrFail($id);
+        if($user->is_private){
+            $requester = User::findOrFail(Auth::id());
+            if(!$requester->isFollowing($user)){
+                return response()->json(['message' => 'this user is private'], 403);
+            }
+        }
 
         return response()->json([
             'id' => $user->id,
@@ -20,6 +27,7 @@ class UserController extends Controller
             'bio' => $user->bio,
             'is_private' => $user->is_private,
             'created_at' => $user->created_at,
+            'personal_info'=> $user->personal_info,
         ]);
     }
 
@@ -35,7 +43,8 @@ class UserController extends Controller
                 'regex:/^[a-zA-Z0-9_]+$/', //only letters,numbers,underscores
             ],
         ]);
-        $user = Auth::user();
+
+        $user = User::findOrFail(Auth::id());
         $user->username = $request->username;
         $user->save();
 
@@ -46,8 +55,7 @@ class UserController extends Controller
         $request->validate([
             'bio' => 'nullable|string|max:255',
         ]);
-
-        $user = Auth::user();
+$user = User::findOrFail(Auth::id());
         $user->bio = $request->bio;
         $user->save();
 
@@ -56,7 +64,7 @@ class UserController extends Controller
 
     public function togglePrivacy(Request $request)
     {
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
         $user->is_private = !$user->is_private;
         $user->save();
 
@@ -64,5 +72,24 @@ class UserController extends Controller
             'message' => 'Privacy setting updated',
             'is_private' => $user->is_private,
         ]);
+    }
+
+    public function updatePersonalInfo(Request $request){
+
+        $user = User::findOrFail(Auth::id());
+
+        $request->validate([
+            'personal_info' => 'required|array',
+        ]);
+
+
+        $user->personal_info = $request->input('personal_info');
+
+        $user->save();
+
+        return response()->json(['message' => 'personal info updated successfully.']);
+
+
+
     }
 }

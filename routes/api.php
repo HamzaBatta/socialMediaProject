@@ -74,6 +74,7 @@ Route::middleware('auth:api')->group(function () {
     //User
     Route::post('/user/username', [UserController::class, 'updateUsername']);
     Route::post('/user/bio', [UserController::class, 'updateBio']);
+    Route::post('/user/info', [UserController::class, 'updatePersonalInfo']);
     Route::post('/user/privacy', [UserController::class, 'togglePrivacy']);
     Route::get('/user/{id}', [UserController::class, 'show']);
 });
@@ -104,4 +105,3 @@ Route::middleware('auth:api')->prefix('groups')->group(function () {
 // Route::post('/users/follow', [FollowController::class, 'follow']);
 
 require __DIR__ . '/Account/follow.php';
-

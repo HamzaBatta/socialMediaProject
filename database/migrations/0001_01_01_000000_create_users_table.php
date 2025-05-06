@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('verification_code')->nullable();
             $table->string('bio')->nullable();
             $table->boolean('is_private')->default(false);
+            $table->json('personal_info')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
