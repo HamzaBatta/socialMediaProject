@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Request as FollowRequest;    // your Eloquent model, aliased
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
@@ -15,8 +16,8 @@ class FollowController extends Controller
 
     public function follow(Request $request)
     {
-        $currentUser = User::find(Auth::id());
-        $targetUser = User::find($request->input('targetId'));
+        $currentUser = User::findOrFail(Auth::id());
+        $targetUser = User::findOrFail($request->targetId);
         
         if ($currentUser->id === $targetUser->id) {
             return response()->json(['message' => 'You cannot follow yourself.'], 400);
@@ -27,21 +28,21 @@ class FollowController extends Controller
             // handle the case of a private account 
             // 1- create the request to the other user
             if($targetUser->is_private){
-                $existingRequest = $targetUser->requests()
-                                            ->where('user_id', $currentUser->id)
-                                            ->where('state', 'pending')
-                                            ->first();
-                                                    
-                if (!$existingRequest) {
-                    $request = $targetUser->requests()->create([
-                        'user_id' => $currentUser->id,
+                $existing = $targetUser->requests()
+                                   ->where('user_id', $currentUser->id)
+                                   ->where('state', 'pending')
+                                   ->first();
+
+                if (! $existing) {
+                    $targetUser->requests()->create([
+                        'user_id'      => $currentUser->id,
                         'requested_at' => now(),
                     ]);
-                    return response()->json(['message' => 'sent a follow request'], 200);
-                }else {
-                    $existingRequest->delete();
-                    return response()->json(['message' => 'unsent the follow request'], 200);
+                    return response()->json(['message' => 'Follow request sent.'], 200);
                 }
+
+                $existing->delete();
+                return response()->json(['message' => 'Follow request withdrawn.'], 200);
                  
             }
 
@@ -89,4 +90,33 @@ class FollowController extends Controller
         $following = $targetUser->following()->get();
         return response()->json($following);
     }
+
+    /**
+     * Accept a pending follow request and create the follow pivot.
+     *
+     * @param  \Illuminate\Http\Request  $httpRequest
+     * @param  int  $requestId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function acceptRequest(Request $httpRequest, $requestId)
+    {
+        $currentUser = Auth::user();
+
+        $followRequest = FollowRequest::where('id', $requestId)
+            ->where('requestable_type', User::class)
+            ->where('requestable_id', $currentUser->id)
+            ->where('state', 'pending')
+            ->firstOrFail();
+
+        $followRequest->update([
+            'state'        => 'approved',
+            'responded_at' => now(),
+        ]);
+
+        $requestingUser = User::findOrFail($followRequest->user_id);
+        $requestingUser->following()->attach($currentUser->id);
+
+        return response()->json(['message' => 'Follow request accepted.'], 200);
+    }
+
 }

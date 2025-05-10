@@ -10,16 +10,29 @@ class Request extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['state', 'requested_at', 'responded_at'];
+    protected $fillable = [
+        'user_id',
+        'requestable_id',
+        'requestable_type',
+        'state',
+        'requested_at',
+        'responded_at',
+    ];
 
-    public function requestable(): MorphTo
+    /**
+     * The user who created this request.
+     */
+    public function creator()
     {
-        return $this->morphTo();
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function sender()
+    /**
+     * The target model (e.g. a User) being requested.
+     */
+    public function requestable()
     {
-        return $this->belongsTo(\App\Models\User::class, 'user_id');
+        return $this->morphTo();
     }
 
 }

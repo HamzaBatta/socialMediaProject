@@ -45,10 +45,10 @@ class RequestController extends Controller
         $pendingRequests = $user
             ->requests()             
             ->where('state', 'pending')
-            ->with('sender')        
+            ->with('creator')        
             ->get();
 
-        return response()->json([
+        return response()->json([   
             'pending_requests' => $pendingRequests
         ]);
     }
@@ -58,7 +58,10 @@ class RequestController extends Controller
      */
     public function edit(Request $request)
     {
-        //
+        //accepting a user request : 
+        $currentUser = User::findOrFail(Auth::id());
+        $targetUser = User::findOrFail($request->targetId);
+
     }
 
     /**

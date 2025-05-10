@@ -7,6 +7,7 @@ use App\Http\Controllers\GoogleAuthController;
 
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\RequestController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PostController;
@@ -102,6 +103,15 @@ Route::middleware('auth:api')->prefix('groups')->group(function () {
     Route::post('/{group}/leave', [GroupController::class, 'leave']);
 });
 
+Route::middleware('auth:api')->prefix('users')->group(function () {
+    Route::post('/followUser', [FollowController::class, 'follow']);
+    Route::post('/requests/{request}/accept', [FollowController::class, 'acceptRequest']);
+    Route::delete('/{user}/unfollow', [FollowController::class, 'unfollow']);
+    Route::get('/{user}/followers', [FollowController::class, 'followers']);
+    Route::get('/{user}/following', [FollowController::class, 'following']);
+    Route::get('/requests', [RequestController::class, 'show']);
+});
+
 // Route::post('/users/follow', [FollowController::class, 'follow']);
 
-require __DIR__ . '/Account/follow.php';
+

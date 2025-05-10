@@ -13,11 +13,22 @@ return new class extends Migration
     {
         Schema::create('requests', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('user_id')->constrained();
+            // the user who initiated the request
+            $table->unsignedBigInteger('user_id')->constrained()->onDelete('cascade');
+            
+            // polymorphic target (e.g. App\Models\User)
+            $table->unsignedBigInteger('requestable_id');
+            $table->string('requestable_type');
+            
+            // request state & timestamps
             $table->enum('state', ['pending', 'approved', 'rejected'])->default('pending');
             $table->timestamp('requested_at');
             $table->timestamp('responded_at')->nullable();
+            
             $table->timestamps();
+            
+            // optional index for faster lookups
+            $table->index(['requestable_type', 'requestable_id']);
         });
     }
 

@@ -172,8 +172,10 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
 
 
 
-
-    public function requests(): MorphMany
+/**
+     * All follow‐requests made *to* this user.
+     */
+    public function requests()
     {
         return $this->morphMany(Request::class, 'requestable');
     }
