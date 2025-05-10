@@ -30,20 +30,82 @@ class PostController extends Controller
         // Case 2: Private user but user is the owner
         // Case 3: Private user and user follows the owner
         //$this->authorize('viewAny',$authUser, $user);
+
+        /**
+         * if the authed user is following the wanted user or he want to get his own posts
+         * ==> return all the posts (no other checks needed)
+         */
+        if($authUser->isFollowing($user)||$user->id === $authUser->id){
+            $posts = Post::where('user_id', $request->user_id)
+                     ->with(['media'])
+                     ->withCount(['likes', 'comments'])
+                     ->latest()
+                     ->get()
+                     ->map(function ($post) use ($authUser) {
+                         return [
+                             'id' => $post->id,
+                             'text' => $post->text,
+                             'likes_count' => $post->likes_count,
+                             'comments_count' => $post->comments_count,
+                             'is_liked' => $post->isLikedBy($authUser),
+                             'group_id' =>$post->group_id,
+                             'media' => $post->media->map(function ($media) {
+                                 return [
+                                     'id' => $media->id,
+                                     'type' => $media->type,
+                                     'url' => url("storage/{$media->path}"),
+                                 ];
+                             }),
+                             'created_at' => $post->created_at,
+                         ];
+                     });
+
+        return response()->json(['posts' => $posts ]);
+           }
+           /**
+            * if the user is public 
+            * ==> return all the public posts (if he was following the user he wouldn't get to this)
+            */
         if (!$user->is_private) {
-            $authorize = true;
-            $message = 'the user is public';
+          
+            $posts = Post::where('user_id', $request->user_id)
+                     ->where('privacy', 'public')
+                     ->with(['media'])
+                     ->withCount(['likes', 'comments'])
+                     ->latest()
+                     ->get()
+                     ->map(function ($post) use ($authUser) {
+                         return [
+                             'id' => $post->id,
+                             'text' => $post->text,
+                             'likes_count' => $post->likes_count,
+                             'comments_count' => $post->comments_count,
+                             'is_liked' => $post->isLikedBy($authUser),
+                             'group_id' =>$post->group_id,
+                             'media' => $post->media->map(function ($media) {
+                                 return [
+                                     'id' => $media->id,
+                                     'type' => $media->type,
+                                     'url' => url("storage/{$media->path}"),
+                                 ];
+                             }),
+                             'created_at' => $post->created_at,
+                         ];
+                     });
+
+        return response()->json(['posts' => $posts ]);
+         
         }
     
         // Case 2: Profile is private but user is viewing their own profile
-        if ($user->id === $authUser->id) {
+        if () {
             $authorize = true;
             $message = 'you are asking yourself';
         }
     
         // Case 3: Profile is private and requesting user follows the profile owner
         if(!$authorize){
-            return response()->json(['message' => $message],403);
+            return response()->json(['message' => "this profile is private and you're not following that user"],403);
         }
 
         $posts = Post::where('user_id', $request->user_id)
@@ -80,12 +142,14 @@ class PostController extends Controller
             'group_id'  => 'nullable|exists:groups,id',
             'media'     => 'nullable|array',        
             'media.*'   => 'file|mimes:jpeg,png,gif,mp4,mov|max:20480',
+            'privacy'   => 'nullable|in:public,private',
         ]);
 
         $post = Post::create([
             'user_id' => Auth::id(),
             'text' => $request->text,
             'group_id' => $request->group_id,
+            'privacy' => $request->privacy ?? 'public',
         ]);
 
         $mediaFiles = $request->file('media', []);
