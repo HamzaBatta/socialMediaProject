@@ -23,6 +23,7 @@ class UserController extends Controller
         return response()->json([
             'id' => $user->id,
             'name' => $user->name,
+            'Email' => $user->email,
             'username' => $user->username,
             'bio' => $user->bio,
             'is_private' => $user->is_private,

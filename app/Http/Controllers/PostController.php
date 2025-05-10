@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,65 +13,48 @@ class PostController extends Controller
 {
     public function index(Request $request)
     {
-        $validatedData = $request->validate([
+        $request->validate([
             'user_id' => 'required|exists:users,id',
-        ], [], [
-            'user_id' => 'user_id',
         ]);
 
-        $authUser = Auth::id();
-        $authUser = User::find($authUser);
-        $authorize = false;
-        $message = 'i did not enter any conditions';
-        $user = User::find($validatedData['user_id']);
-        $authorize =  $authUser->isFollowing($user);
-        $message = $authorize;
-        // this line will authorize the user in one of three cases 
-        // Case 1: Public user profile 
-        // Case 2: Private user but user is the owner
-        // Case 3: Private user and user follows the owner
-        //$this->authorize('viewAny',$authUser, $user);
-        if (!$user->is_private) {
-            $authorize = true;
-            $message = 'the user is public';
-        }
-    
-        // Case 2: Profile is private but user is viewing their own profile
-        if ($user->id === $authUser->id) {
-            $authorize = true;
-            $message = 'you are asking yourself';
-        }
-    
-        // Case 3: Profile is private and requesting user follows the profile owner
-        if(!$authorize){
-            return response()->json(['message' => $message],403);
-        }
+        $authUser = Auth::user();
+        $targetUser = User::findOrFail($request->user_id);
 
-        $posts = Post::where('user_id', $request->user_id)
+        $query = Post::query()
+                     ->where('user_id', $targetUser->id)
                      ->with(['media'])
-                     ->withCount(['likes', 'comments'])
-                     ->latest()
-                     ->get()
-                     ->map(function ($post) use ($authUser) {
-                         return [
-                             'id' => $post->id,
-                             'text' => $post->text,
-                             'likes_count' => $post->likes_count,
-                             'comments_count' => $post->comments_count,
-                             'is_liked' => $post->isLikedBy($authUser),
-                             'group_id' =>$post->group_id,
-                             'media' => $post->media->map(function ($media) {
-                                 return [
-                                     'id' => $media->id,
-                                     'type' => $media->type,
-                                     'url' => url("storage/{$media->path}"),
-                                 ];
-                             }),
-                             'created_at' => $post->created_at,
-                         ];
-                     });
+                     ->withCount(['likes', 'comments']);
 
-        return response()->json(['posts' => $posts , 'message' => $message]);
+        // If not the same user
+        if ($authUser->id !== $targetUser->id) {
+            if ($authUser->isFollowing($targetUser)) {
+                // show all
+            } elseif (!$targetUser->is_private) {
+                $query->where('privacy', 'public');
+            } else {
+                return response()->json(['posts' => []]);
+            }
+        }
+
+        $posts = $query->latest()->get()->map(function ($post) use ($authUser) {
+            return [
+                'id' => $post->id,
+                'text' => $post->text,
+                'likes_count' => $post->likes()->count(),
+                'comments_count' => $post->comments()->count(),
+                'is_liked' => $post->isLikedBy($authUser->id),
+                'group_id' => $post->group_id,
+                'media' => $post->media->map(fn($media) => [
+                    'id' => $media->id,
+                    'type' => $media->type,
+                    'url' => url("storage/{$media->path}"),
+                ]),
+                'privacy' =>$post->privacy,
+                'created_at' => $post->created_at,
+            ];
+        });
+
+        return response()->json(['posts' => $posts]);
     }
 
     public function store(Request $request)
@@ -78,14 +62,16 @@ class PostController extends Controller
         $request->validate([
             'text'      => 'nullable|string',
             'group_id'  => 'nullable|exists:groups,id',
-            'media'     => 'nullable|array',        
+            'media'     => 'nullable|array',
             'media.*'   => 'file|mimes:jpeg,png,gif,mp4,mov|max:20480',
+            'privacy'   => ['required', 'in:public,private'],
         ]);
 
         $post = Post::create([
             'user_id' => Auth::id(),
             'text' => $request->text,
             'group_id' => $request->group_id,
+            'privacy' =>$request->privacy
         ]);
 
         $mediaFiles = $request->file('media', []);
@@ -120,6 +106,7 @@ class PostController extends Controller
                         'url' => url("storage/{$media->path}"),
                     ];
                 }),
+                'privacy' =>$post->privacy,
                 'created_at' => $post->created_at,
             ],
         ], 201);
@@ -127,32 +114,26 @@ class PostController extends Controller
 
     public function show($id, Request $request)
     {
-        $authUser = Auth::id();
+        $authUser = Auth::user();
+        $post = Post::with(['media', 'user'])->withCount(['likes', 'comments'])->findOrFail($id);
 
-        $post = Post::with(['media'])
-                    ->withCount(['likes', 'comments'])
-                    ->findOrFail($id);
-
-        // this line will authorize the user in one of three cases 
-        // Case 1: Public post
-        // Case 2: Private post but user is the owner
-        // Case 3: Private post and user follows the owner
-        $this->authorize('view',$authUser, $post);
+        if (!Gate::allows('view', $post)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
 
         return response()->json([
             'id' => $post->id,
             'text' => $post->text,
             'likes_count' => $post->likes_count,
             'comments_count' => $post->comments_count,
-            'is_liked' => $post->isLikedBy($authUser),
+            'is_liked' => $post->isLikedBy($authUser->id),
             'group_id' => $post->group_id,
-            'media' => $post->media->map(function ($media) {
-                return [
-                    'id' => $media->id,
-                    'type' => $media->type,
-                    'url' => url("storage/{$media->path}"),
-                ];
-            }),
+            'media' => $post->media->map(fn($media) => [
+                'id' => $media->id,
+                'type' => $media->type,
+                'url' => url("storage/{$media->path}"),
+            ]),
+            'privacy' =>$post->privacy,
             'created_at' => $post->created_at,
         ]);
     }

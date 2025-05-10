@@ -13,44 +13,38 @@ class PostPolicy
      */
     public function viewAny(User $asker , User $owner): bool
     {
-        // Case 1: Profile is public
-        $ownerId = $owner->id;
-        $ownerFromDb = User::find($ownerId);
-        $askerId = $asker->id;
-        $askerFromDb = User::find($askerId);
-        dd($ownerId , $askerId);
-        if (!$ownerFromDb->is_private) {
-            return true;
-        }
-    
-        // Case 2: Profile is private but user is viewing their own profile
-        if ($asker->id === $owner->id) {
-            return true;
-        }
-    
-        // Case 3: Profile is private and requesting user follows the profile owner
-        return $askerFromDb->isFollowing($ownerFromDb);
+        return false;
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Post $post): bool
+    public function view(User $authUser, Post $post): bool
     {
-        // Case 1: Public post
-        if ($post->privacy === 'public') {
+        // It's your own post
+        if ($authUser->id === $post->user_id) {
             return true;
         }
 
-        // Case 2: Private post but user is the owner
-        if ($user->id === $post->user_id) {
+        $owner = $post->user;
+
+        // You are blocked by the user or you blocked them (optional, add this check if you want)
+        if ($authUser->isBlockedBy($owner) || $authUser->hasBlocked($owner)) {
+            return false;
+        }
+
+        // You follow them
+        if ($authUser->isFollowing($owner)) {
             return true;
         }
 
-        // Case 3: Private post and user follows the owner
-        $postOwner = User::find($post->user_id);
-        return $user->isFollowing($postOwner);
+        // Not following, check if the account is public and the post is public
+        if (!$owner->is_private && $post->privacy === 'public') {
+            return true;
+        }
 
+        // Private user and not following
+        return false;
     }
 
     /**
