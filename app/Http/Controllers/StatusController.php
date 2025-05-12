@@ -18,26 +18,38 @@ class StatusController extends Controller
             'user_id' => 'required|exists:users,id',
         ]);
 
-        $statuses = Status::where('user_id', $request->user_id)
+        $owner = User::findOrFail($request->user_id);
+        $authUser = Auth::user();
+
+        if ($authUser->id !== $owner->id) {
+            if ($owner->is_private && !$owner->followers()->where('follower_id', Auth::id())->exists()) {
+                return response()->json(['message' => 'you don\'t follow this user']);
+            }
+        }
+
+        $statuses = Status::where('user_id', $owner->id)
                           ->where('expiration_date', '>', now())
-                          ->with('media')
+                          ->with(['media', 'user'])
                           ->latest()
                           ->get();
 
         return response()->json([
-            'statuses' => $statuses->map(function ($status) {
-                return [
-                    'id' => $status->id,
-                    'text' => $status->text,
-                    'expiration_date' => $status->expiration_date,
-                    'media' => $status->media ? [
-                        'id' => $status->media->id,
-                        'type' => $status->media->type,
-                        'url' => url("storage/{$status->media->path}"),
-                    ] : null,
-                    'created_at' => $status->created_at,
-                ];
-            }),
+            'statuses' => $statuses->map(fn($status) => [
+                'id' => $status->id,
+                'text' => $status->text,
+                'expiration_date' => $status->expiration_date,
+                'media' => $status->media ? [
+                    'id' => $status->media->id,
+                    'type' => $status->media->type,
+                    'url' => url("storage/{$status->media->path}"),
+                ] : null,
+                'created_at' => $status->created_at,
+                'user' => [
+                    'id' => $status->user->id,
+                    'name' => $status->user->name,
+                    'username' =>$status->user->username
+                ],
+            ]),
         ]);
     }
 
@@ -68,12 +80,9 @@ class StatusController extends Controller
 
     public function show(Request $request, $id)
     {
-        $status = Status::with('media')->findOrFail($id);
+        $status = Status::with('media', 'user')->findOrFail($id);
 
-        // Changed to handle the request or get the user from the auth API
-        $user = Auth::id(); // Assuming the user is authenticated and using the auth API
-
-        $this->authorize('view', $user, $status); // Assuming there's a policy for authorization
+        $this->authorize('view', $status);
 
         return response()->json([
             'id' => $status->id,
@@ -85,6 +94,11 @@ class StatusController extends Controller
                 'url' => url("storage/{$status->media->path}"),
             ] : null,
             'created_at' => $status->created_at,
+            'user' => [
+                'id' => $status->user->id,
+                'name' => $status->user->name,
+                'username' =>$status->user->username
+            ],
         ]);
     }
 

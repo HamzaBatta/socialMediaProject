@@ -19,22 +19,22 @@ class StatusPolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Status $status): bool
+    public function view(User $authUser, Status $status): bool
     {
-        // get the user with the status
-        $owner = User::find($status->user_id);
-        // Case 1: Public user 
+        $owner = $status->user;
+
+        // It's your own post
+        if ($authUser->id === $owner->user_id) {
+            return true;
+        }
+
         if (!$owner->is_private) {
-            return true;
+            return true; // Public user
         }
 
-        // Case 2: Private status but user is the owner
-        if ($user->id === $status->user_id) {
-            return true;
-        }
+        // Check if authUser follows the owner
+        return $owner->followers()->where('follower_id', $authUser->id)->exists();
 
-        // Case 3: Private status and user follows the owner
-        return $user->isFollowing($owner);
     }
 
     /**

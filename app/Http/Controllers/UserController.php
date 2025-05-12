@@ -12,13 +12,18 @@ class UserController extends Controller
 
     public function show($id)
     {
+        $authUser = Auth::user();
+
         $user = User::findOrFail($id);
-        if($user->is_private){
-            $requester = User::findOrFail(Auth::id());
-            if(!$requester->isFollowing($user)){
-                return response()->json(['message' => 'this user is private'], 403);
+        if($authUser->id!==$user->id){
+            if($user->is_private){
+                $requester = User::findOrFail(Auth::id());
+                if(!$requester->isFollowing($user)){
+                    return response()->json(['message' => 'this user is private'], 403);
+                }
             }
         }
+        $user = User::findOrFail($id);
 
         return response()->json([
             'id' => $user->id,
