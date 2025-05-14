@@ -15,33 +15,44 @@ class PostController extends Controller
     {
         $request->validate([
             'user_id' => 'required|exists:users,id',
+            'page' => 'nullable|integer|min:1',
         ]);
 
         $authUser = Auth::user();
         $targetUser = User::findOrFail($request->user_id);
+        $page = $request->query('page', 1);
+        $perPage = 10;
 
         $query = Post::query()
                      ->where('user_id', $targetUser->id)
-                     ->with(['media'])
+                     ->with('media')
                      ->withCount(['likes', 'comments']);
 
-        // If not the same user
         if ($authUser->id !== $targetUser->id) {
             if ($authUser->isFollowing($targetUser)) {
                 // show all
             } elseif (!$targetUser->is_private) {
                 $query->where('privacy', 'public');
             } else {
-                return response()->json(['posts' => []]);
+                return response()->json([
+                    'posts' => [],
+                    'pagination' => [
+                        'current_page' => $page,
+                        'per_page' => $perPage,
+                        'total' => 0,
+                    ],
+                ]);
             }
         }
 
-        $posts = $query->latest()->get()->map(function ($post) use ($authUser) {
+        $posts = $query->latest()->paginate($perPage, ['*'], 'page', $page);
+
+        $posts->getCollection()->transform(function ($post) use ($authUser) {
             return [
                 'id' => $post->id,
                 'text' => $post->text,
-                'likes_count' => $post->likes()->count(),
-                'comments_count' => $post->comments()->count(),
+                'likes_count' => $post->likes_count,
+                'comments_count' => $post->comments_count,
                 'is_liked' => $post->isLikedBy($authUser->id),
                 'group_id' => $post->group_id,
                 'media' => $post->media->map(fn($media) => [
@@ -49,12 +60,20 @@ class PostController extends Controller
                     'type' => $media->type,
                     'url' => url("storage/{$media->path}"),
                 ]),
-                'privacy' =>$post->privacy,
+                'privacy' => $post->privacy,
                 'created_at' => $post->created_at,
             ];
         });
 
-        return response()->json(['posts' => $posts]);
+        return response()->json([
+            'posts' => $posts->items(),
+            'pagination' => [
+                'current_page' => $posts->currentPage(),
+                'per_page' => $posts->perPage(),
+                'total' => $posts->total(),
+                'last_page' => $posts->lastPage(),
+            ],
+        ]);
     }
 
     public function store(Request $request)
