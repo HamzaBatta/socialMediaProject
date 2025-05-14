@@ -41,21 +41,35 @@ class UserController extends Controller
     {
         $request->validate([
             'username' => [
-                'required',
+                'nullable',
                 'string',
                 'unique:users,username',
                 'min:3',
                 'max:20',
-                'regex:/^[a-zA-Z0-9_]+$/', //only letters,numbers,underscores
+                'regex:/^[a-zA-Z0-9_]+$/',
+            ],
+            'name' => [
+                'nullable',
+                'string',
+                'max:255',
             ],
         ]);
 
         $user = User::findOrFail(Auth::id());
-        $user->username = $request->username;
+
+        if ($request->filled('username')) {
+            $user->username = $request->username;
+        }
+
+        if ($request->filled('name')) {
+            $user->name = $request->name;
+        }
+
         $user->save();
 
-        return response()->json(['message' => 'Username updated successfully']);
+        return response()->json(['message' => 'Profile updated successfully']);
     }
+
     public function updateBio(Request $request)
     {
         $request->validate([
@@ -81,21 +95,12 @@ $user = User::findOrFail(Auth::id());
     }
 
     public function updatePersonalInfo(Request $request){
-
         $user = User::findOrFail(Auth::id());
-
         $request->validate([
             'personal_info' => 'required|array',
         ]);
-
-
         $user->personal_info = $request->input('personal_info');
-
         $user->save();
-
         return response()->json(['message' => 'personal info updated successfully.']);
-
-
-
     }
 }
