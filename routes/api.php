@@ -78,6 +78,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/user/info', [UserController::class, 'updatePersonalInfo']);
     Route::post('/user/privacy', [UserController::class, 'togglePrivacy']);
     Route::get('/user/{id}', [UserController::class, 'show']);
+    Route::post('/user/avatar', [UserController::class, 'setAvatar']);
 });
 
 Route::middleware('auth:api')->prefix('groups')->group(function () {

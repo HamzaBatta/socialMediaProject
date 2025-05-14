@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Routing\Route;
 
 class UserController extends Controller
@@ -30,6 +31,7 @@ class UserController extends Controller
             'name' => $user->name,
             'Email' => $user->email,
             'username' => $user->username,
+            'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
             'bio' => $user->bio,
             'is_private' => $user->is_private,
             'created_at' => $user->created_at,
@@ -102,5 +104,33 @@ $user = User::findOrFail(Auth::id());
         $user->personal_info = $request->input('personal_info');
         $user->save();
         return response()->json(['message' => 'personal info updated successfully.']);
+    }
+
+    public function setAvatar(Request $request)
+    {
+        $request->validate([
+            'avatar' => 'required|image|max:2048', // max 2MB, can adjust
+        ]);
+
+        $user = Auth::user();
+
+        // Delete old avatar if exists
+        if ($user->media) {
+            Storage::disk('public')->delete($user->media->path);
+            $user->media()->delete();
+        }
+
+        $file = $request->file('avatar');
+        $path = $file->store('avatars', 'public');
+
+        $user->media()->create([
+            'path' => $path,
+            'type' => 'image',
+        ]);
+
+        return response()->json([
+            'message' => 'Avatar updated successfully',
+            'avatar_url' => url("storage/{$path}"),
+        ]);
     }
 }

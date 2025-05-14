@@ -19,13 +19,13 @@ class PostController extends Controller
         ]);
 
         $authUser = Auth::user();
-        $targetUser = User::findOrFail($request->user_id);
+        $targetUser = User::with('media')->findOrFail($request->user_id);
         $page = $request->query('page', 1);
         $perPage = 10;
 
         $query = Post::query()
                      ->where('user_id', $targetUser->id)
-                     ->with('media')
+                     ->with(['media', 'user.media'])
                      ->withCount(['likes', 'comments']);
 
         if ($authUser->id !== $targetUser->id) {
@@ -62,6 +62,13 @@ class PostController extends Controller
                 ]),
                 'privacy' => $post->privacy,
                 'created_at' => $post->created_at,
+                'user' => [
+                    'id' => $post->user->id,
+                    'name' => $post->user->name,
+                    'avatar' => $post->user->media
+                        ? url("storage/{$post->user->media->path}")
+                        : null,
+                ],
             ];
         });
 
@@ -134,7 +141,8 @@ class PostController extends Controller
     public function show($id, Request $request)
     {
         $authUser = Auth::user();
-        $post = Post::with(['media', 'user'])->withCount(['likes', 'comments'])->findOrFail($id);
+
+        $post = Post::with(['media', 'user.media'])->withCount(['likes', 'comments'])->findOrFail($id);
 
         if (!Gate::allows('view', $post)) {
             return response()->json(['message' => 'Unauthorized'], 403);
@@ -152,8 +160,15 @@ class PostController extends Controller
                 'type' => $media->type,
                 'url' => url("storage/{$media->path}"),
             ]),
-            'privacy' =>$post->privacy,
+            'privacy' => $post->privacy,
             'created_at' => $post->created_at,
+            'user' => [
+                'id' => $post->user->id,
+                'name' => $post->user->name,
+                'avatar' => $post->user->media
+                    ? url("storage/{$post->user->media->path}")
+                    : null,
+            ],
         ]);
     }
 

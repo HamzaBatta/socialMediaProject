@@ -12,22 +12,38 @@ class CommentController extends Controller
         $request->validate([
             'post_id' => 'nullable|exists:posts,id',
             'comment_id' => 'nullable|exists:comments,id',
+            'page' => 'nullable|integer|min:1',
         ]);
 
+        $perPage = 10;
+        $page = $request->query('page', 1);
+
+        $query = Comment::query()->with(['user.media'])->withCount('likes');
+
         if ($request->filled('post_id')) {
-            $comments = Comment::where('post_id', $request->post_id)
-                               ->whereNull('reply_comment_id')
-                               ->withCount('likes')
-                               ->with(['user'])
-                               ->get();
+            $query->where('post_id', $request->post_id)
+                  ->whereNull('reply_comment_id');
         } elseif ($request->filled('comment_id')) {
-            $comments = Comment::where('reply_comment_id', $request->comment_id)
-                               ->withCount('likes')
-                               ->with(['user'])
-                               ->get();
+            $query->where('reply_comment_id', $request->comment_id);
         } else {
             return response()->json(['message' => 'post_id or comment_id is required'], 422);
         }
+
+        $comments = $query->paginate($perPage, ['*'], 'page', $page);
+
+        $comments->getCollection()->transform(function ($comment) {
+            return [
+                'id' => $comment->id,
+                'text' => $comment->text,
+                'likes_count' => $comment->likes_count,
+                'user' => [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                    'avatar' => $comment->user->media ? url("storage/{$comment->user->media->path}") : null,
+                ],
+                'created_at' => $comment->created_at,
+            ];
+        });
 
         return response()->json(['comments' => $comments]);
     }
@@ -51,17 +67,41 @@ class CommentController extends Controller
             'user_id' => auth()->id(),
         ]);
 
+        $comment->loadCount('likes')->load('user.media');
+
         return response()->json([
             'message' => 'Comment created successfully',
-            'comment' => $comment->loadCount('likes')->load('user'),
+            'comment' => [
+                'id' => $comment->id,
+                'text' => $comment->text,
+                'likes_count' => $comment->likes_count,
+                'user' => [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                    'avatar' => $comment->user->media ? url("storage/{$comment->user->media->path}") : null,
+                ],
+                'created_at' => $comment->created_at,
+            ],
         ], 201);
     }
 
     public function show($id)
     {
-        $comment = Comment::withCount('likes')->with(['user'])->findOrFail($id);
+        $comment = Comment::with(['user.media'])->withCount('likes')->findOrFail($id);
 
-        return response()->json(['comment' => $comment]);
+        return response()->json([
+            'comment' => [
+                'id' => $comment->id,
+                'text' => $comment->text,
+                'likes_count' => $comment->likes_count,
+                'user' => [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                    'avatar' => $comment->user->media ? url("storage/{$comment->user->media->path}") : null,
+                ],
+                'created_at' => $comment->created_at,
+            ]
+        ]);
     }
 
     public function update(Request $request, $id)

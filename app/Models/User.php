@@ -41,6 +41,7 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
         return [
             'name' => $this->name,
             'email' => $this->email,
+            'avatar' => $this->media ? url("storage/{$this->media->path}") : null,
         ];
     }
 

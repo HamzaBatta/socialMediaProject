@@ -47,7 +47,8 @@ class StatusController extends Controller
                 'user' => [
                     'id' => $status->user->id,
                     'name' => $status->user->name,
-                    'username' =>$status->user->username
+                    'username' =>$status->user->username,
+                    'avatar' => $status->user->media ? url("storage/{$status->user->media->path}") : null,
                 ],
             ]),
         ]);
@@ -97,7 +98,8 @@ class StatusController extends Controller
             'user' => [
                 'id' => $status->user->id,
                 'name' => $status->user->name,
-                'username' =>$status->user->username
+                'username' =>$status->user->username,
+                'avatar' => $status->user->media ? url("storage/{$status->user->media->path}") : null,
             ],
         ]);
     }

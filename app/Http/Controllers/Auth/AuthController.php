@@ -50,12 +50,20 @@ class AuthController extends Controller
         if (!$token = JWTAuth::attempt($credentials)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
-        $user = User::where('email', $request->email)->first();
+
+        $user = User::with('media')->where('email', $request->email)->first();
 
         return response()->json([
             'message' => 'Login successful',
             'token' => $token,
-            'user' => $user
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'email' => $user->email,
+                'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
+                'is_private' =>$user->is_private,
+            ],
         ]);
     }
 
