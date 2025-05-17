@@ -73,12 +73,11 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('/statuses/{id}', [StatusController::class, 'destroy']);
 
     //User
-    Route::post('/user/username', [UserController::class, 'updateUsername']);
-    Route::post('/user/bio', [UserController::class, 'updateBio']);
-    Route::post('/user/info', [UserController::class, 'updatePersonalInfo']);
-    Route::post('/user/privacy', [UserController::class, 'togglePrivacy']);
+    Route::get('/user/check-username', [UserController::class, 'checkUsername']);
+    Route::post('/user/update', [UserController::class, 'updateProfile']); // name, username, bio, avatar, privacy
+    Route::post('/user/updatePersonalInfo',[UserController::class,'updatePersonalInfo']);
     Route::get('/user/{id}', [UserController::class, 'show']);
-    Route::post('/user/avatar', [UserController::class, 'setAvatar']);
+
 });
 
 Route::middleware('auth:api')->prefix('groups')->group(function () {
