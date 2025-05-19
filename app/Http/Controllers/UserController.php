@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\ChangeEmailEmails;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Symfony\Component\Routing\Route;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class UserController extends Controller
 {
@@ -118,8 +122,12 @@ class UserController extends Controller
 
         $user->load('media');
 
+
+        $token = JWTAuth::fromUser($user);
+
         return response()->json([
             'message' => 'Profile updated successfully',
+            'token' => $token,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -139,5 +147,55 @@ class UserController extends Controller
         $user->personal_info = $request->input('personal_info');
         $user->save();
         return response()->json(['message' => 'personal info updated successfully.']);
+    }
+
+    public function changePassword(Request $request){
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = Auth::user();
+
+        if(!Hash::check($request->current_password,$user->password)){
+            return response()->json(['message'=>'Current password is incorrect']);
+        }
+        $user->password= Hash::make($request->current_password);
+        $user->save();
+        return response()->json(['message'=>'Password changed successfully']);
+    }
+
+    public function requestChangeEmailCode()
+    {
+        $user = Auth::user();
+
+        $code = mt_rand(1000, 9999);
+
+        $user->verification_code = $code;
+        $user->save();
+
+        Mail::to($user->email)->send(new ChangeemailEmails($code));
+
+        return response()->json(['message' => 'Verification code sent to your current email.']);
+    }
+    public function verifyChangeEmailCode(Request $request)
+    {
+        $request->validate([
+            'code' => 'required|digits:4',
+            'new_email' => 'required|email|unique:users,email',
+        ]);
+
+        $user = Auth::user();
+
+        if ($user->verification_code != $request->code) {
+            return response()->json(['message' => 'Invalid verification code.'], 422);
+        }
+
+        $user->email = $request->new_email;
+        $user->verification_code = null;
+        //$user->email_verified_at = null; // optional: reverify new email
+        $user->save();
+
+        return response()->json(['message' => 'Email changed successfully.']);
     }
 }
