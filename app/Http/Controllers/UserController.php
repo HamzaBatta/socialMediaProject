@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\ChangeEmailEmails;
+use App\Mail\VerifyEmails;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -101,7 +102,7 @@ class UserController extends Controller
         }
 
         if ($request->has('is_private')) {
-            $user->is_private = $request->boolean('is_private');
+            $user->is_private = $request->is_private;
         }
 
         if ($request->hasFile('avatar')) {
@@ -192,9 +193,14 @@ class UserController extends Controller
         }
 
         $user->email = $request->new_email;
-        $user->verification_code = null;
-        //$user->email_verified_at = null; // optional: reverify new email
+        $user->email_verified_at = null;
+
+        $code = mt_rand(1000, 9999);
+        $user->verification_code = $code;
         $user->save();
+
+        Mail::to($request->new_email)->send(new VerifyEmails($code));
+
 
         return response()->json(['message' => 'Email changed successfully.']);
     }
