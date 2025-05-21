@@ -41,4 +41,8 @@ class Post extends Model
     {
         return $this->likes()->where('user_id', $userId)->exists();
     }
+
+    public function savedPosts(){
+        return $this->belongsToMany(SavedPost::class,'post_saved_posts');
+    }
 }

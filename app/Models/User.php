@@ -87,6 +87,10 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
     {
         return $this->morphOne(Media::class, 'mediable'); // one-to-one polymorphic :contentReference[oaicite:8]{index=8}
     }
+
+    public function savedPost(){
+        return $this->hasOne(SavedPost::class);
+    }
     /**
      * createing the follow relationship between users
      * and there are many functions :

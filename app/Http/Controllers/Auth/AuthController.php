@@ -28,11 +28,11 @@ class AuthController extends Controller
             'password' => bcrypt($validated['password']),
         ]);
 
-
-
         $code = mt_rand(1000, 9999);
         $user->verification_code = $code;
         $user->save();
+
+        $user->savedPost()->create();
 
         Mail::to($user->email)->send(new VerifyEmails($code));
 

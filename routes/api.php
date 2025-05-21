@@ -1,18 +1,18 @@
 <?php
 
-use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\GoogleAuthController;
-
-use App\Http\Controllers\FollowController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\CommentController;
-use App\Http\Controllers\RequestController;
+use App\Http\Controllers\FollowController;
+use App\Http\Controllers\GroupController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\RequestController;
+use App\Http\Controllers\SavedPostController;
 use App\Http\Controllers\StatusController;
-use App\Http\Controllers\GroupController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Route;
 
 // {====== Public Routes ======}
 Route::post('/auth/google/token', [GoogleAuthController::class, 'handleGoogleToken']);
@@ -81,6 +81,10 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/user/request-change-email-code', [UserController::class, 'requestChangeEmailCode']);
     Route::post('/user/verify-change-email-code', [UserController::class, 'verifyChangeEmailCode']);
 
+    //Saved Collection
+    Route::get('/saved-posts', [SavedPostController::class, 'index']);
+    Route::post('/saved-posts/{id}', [SavedPostController::class, 'store']);
+    Route::delete('/saved-posts/{id}', [SavedPostController::class, 'destroy']);
 });
 
 Route::middleware('auth:api')->prefix('groups')->group(function () {
