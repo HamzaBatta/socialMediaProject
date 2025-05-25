@@ -8,117 +8,173 @@ use App\Http\Requests\UpdateGroupRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use App\Models\User; 
+use App\Models\User;
 
 class GroupController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+
     public function index()
     {
         //
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name'    => 'required|string|max:255',
             'privacy' => 'required|in:public,private',
-            'media'   => 'nullable|image|max:2048',
+            'avatar'  => 'nullable|image|max:2048',
+            'bio'     => 'nullable|string|max:255',
         ]);
 
-        $validated['creator_id'] = Auth::id();
+        $validated['owner_id'] = Auth::id();
         $group = Group::create($validated);
 
-        if ($request->hasFile('media')) {
-            $path = $request->file('media')->store('group_media', 'public');
+        // Add owner as a member with 'owner' role
+        $group->members()->attach(Auth::id(), ['role' => 'owner']);
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('group_avatars', 'public');
             $group->media()->create(['path' => $path]);
         }
 
-        return response()->json(['data' => $group->load('media')], 201);
+        $owner = User::findOrFail($group->owner_id);
+        return response()->json([
+            'message' =>'Group created successfully',
+            'group' =>[
+                'id'=>$group->id,
+                'name'=>$group->name,
+                'privacy'=>$group->privacy,
+                'owner'=>[
+                    'id'=>$owner->id,
+                    'name'=>$owner->name,
+                    'username'=>$owner->username,
+                    'avatar' => $owner->media ? url("storage/{$owner->media->path}") : null,
+                ],
+                'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
+                'bio' => $group->bio,
+            ]
+        ]);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Request $request)
-    {
-        $groupId = $request->group_id;
-        $group = Group::with('media')->findOrFail($groupId);
 
-        return response()->json(['data' => $group], 200);
+    public function show(Request $request, $group_id)
+    {
+        $group = Group::with('media')->findOrFail($group_id);
+        $user = $request->user();
+
+        // Default: Not a member
+        $isMember = false;
+
+        // Check if user is authenticated
+        if ($user) {
+            // Owner is always a member
+            if ($group->owner_id == $user->id) {
+                $isMember = true;
+            } else {
+                // Check if user is an accepted member
+                $isMember = $group->members()->where('user_id', $user->id)->exists();
+            }
+        }
+
+        // If group is public or user is a member → load posts
+        if ($group->privacy === 'public' || $isMember) {
+
+            $posts = $group->posts()->with('media')->get()->map(function ($post) {
+                return [
+                    'id'         => $post->id,
+                    'content'    => $post->content,
+                    'privacy'    => $post->privacy,
+                    'created_at' => $post->created_at,
+                    'media'      => $post->media->map(fn($media) => [
+                        'id'  => $media->id,
+                        'type'=> $media->type,
+                        'url' => url("storage/{$media->path}"),
+                    ]),
+                ];
+            });
+
+
+            return response()->json([
+                'group' => [
+                    'id'=>$group->id,
+                    'name'=>$group->name,
+                    'privacy'=>$group->privacy,
+                    'owner_id'=>$group->owner_id,
+                    'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
+                ],
+                'posts' => $posts,
+            ]);
+        }
+
+        // Private group + not a member
+        return response()->json([
+            'group'  => [
+                'id'=>$group->id,
+                'name'=>$group->name,
+                'privacy'=>$group->privacy,
+                'owner_id'=>$group->owner_id,
+                'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
+            ],
+            'message' => 'This group is private.',
+        ], 403);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Group $group)
-    {
-        //
-    }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request)
+    public function update(Request $request, $group_id)
     {
-        $groupId =$request->group_id;
-        $group = Group::findOrFail($groupId);
+        $group = Group::findOrFail($group_id);
+
+        if ($group->owner_id !== Auth::id()) {
+            return response()->json(['message' => 'You are not authorized to update this group.'], 403);
+        }
 
         $validated = $request->validate([
             'name'    => 'sometimes|required|string|max:255',
             'privacy' => 'sometimes|required|in:public,private',
-            'media'   => 'nullable|image|max:2048',
+            'avatar'   => 'nullable|image|max:2048',
         ]);
 
         $group->update($validated);
 
-        if ($request->hasFile('media')) {
+        if ($request->hasFile('avatar')) {
             if ($group->media) {
                 Storage::disk('public')->delete($group->media->path);
                 $group->media()->delete();
             }
+
             $path = $request->file('media')->store('group_media', 'public');
             $group->media()->create(['path' => $path]);
         }
 
-        return response()->json(['data' => $group->load('media')], 200);
+        return response()->json(['group' => [
+            'id'=>$group->id,
+            'name'=>$group->name,
+            'privacy'=>$group->privacy,
+            'owner_id'=>$group->owner_id,
+            'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
+        ]]);
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Request $request)
+    public function destroy(Request $request, $group_id)
     {
-        $groupId = $request->group_id;
-        $group = Group::findOrFail($groupId);
+        $group = Group::findOrFail($group_id);
+
+        if ($group->owner_id !== Auth::id()) {
+            return response()->json(['message' => 'You are not authorized to delete this group.'], 403);
+        }
 
         if ($group->media) {
             Storage::disk('public')->delete($group->media->path);
-        }
-        if ($group->creator_id == Auth::id()) {
-            $group->delete();
-        }else{
-            
-            return response()->json(['message' => 'you are not authorized'], 403);
+            $group->media()->delete();
         }
 
-        return response()->json(null, 204);
+        $group->delete();
+
+        return response()->json(['message' => 'Group deleted successfully.'], 204);
     }
 
-    public function join(Request $request)
+    public function join(Request $request,$group_id)
     {
         $groupId = $request->group_id;
         $group = Group::findOrFail($groupId);
@@ -131,7 +187,7 @@ class GroupController extends Controller
                                             ->where('user_id', $user->id)
                                             ->where('state', 'pending')
                                             ->first();
-                                                    
+
                 if (!$existingRequest) {
                     $sentRequest = $group->requests()->create([
                         'user_id' => $user->id,
@@ -142,7 +198,7 @@ class GroupController extends Controller
                     $existingRequest->delete();
                     return response()->json(['message' => 'unsent the follow request'], 200);
                 }
-                 
+
             }
 
             $group->members()->attach($user->id);
@@ -154,16 +210,88 @@ class GroupController extends Controller
 
     public function leave(Request $request)
     {
+
         $groupId = $request->group_id;
         $group = Group::findOrFail($groupId);
         $userId = Auth::id();
         $user = User::find($userId);
 
         if ($group->members()->where('user_id', $user->id)->exists()) {
+
             $group->members()->detach($user->id);
             return response()->json(['message' => 'You have left the group.'], 200);
         }
 
         return response()->json(['message' => 'Not a member.'], 200);
     }
+
+    public function members($groupId)
+    {
+        $group = Group::findOrFail($groupId);
+
+        $members = $group->members()->with(['media'])->get()->map(function ($user) {
+            return [
+                'id'       => $user->id,
+                'name'     => $user->name,
+                'username' => $user->username,
+                'avatar'    => $user->media ? url("storage/{$user->media->path}") : null,
+                'role'     => $user->pivot->role,
+            ];
+        });
+
+        return response()->json(['members' => $members], 200);
+    }
+
+    public function pendingRequests($groupId)
+    {
+        $group = Group::findOrFail($groupId);
+
+        if ($group->owner_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $requests = $group->requests()
+                          ->where('state', 'pending')
+                          ->with('creator.media')
+                          ->get()
+                          ->map(function ($request) {
+                              return [
+                                  'id'       => $request->id,
+                                  'user_id'  => $request->creator->id,
+                                  'name'     => $request->creator->name,
+                                  'username' => $request->creator->username,
+                                  'avatar'    => $request->creator->media ? url("storage/{$request->creator->media->path}") : null,
+                                  'requested_at' => $request->requested_at,
+                              ];
+                          });
+
+        return response()->json(['requests' => $requests]);
+    }
+
+    public function respondToRequest(Request $request, $groupId)
+    {
+        $validated = $request->validate([
+            'request_id' => 'required|exists:requests,id',
+            'state'      => 'required|in:approved,rejected',
+        ]);
+
+        $group = Group::findOrFail($groupId);
+
+        // Only the group owner can respond to requests (can extend this to admins later)
+        if ($group->owner_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $joinRequest = $group->requests()->where('id', $validated['request_id'])->firstOrFail();
+
+        $joinRequest->update(['state' => $validated['state']]);
+
+        if ($validated['state'] === 'approved') {
+            $group->members()->attach($joinRequest->user_id, ['role' => 'member']);
+            return response()->json(['message' => 'Request approved and user added to group.']);
+        }
+
+        return response()->json(['message' => 'Request rejected.']);
+    }
+
 }

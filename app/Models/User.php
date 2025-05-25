@@ -91,6 +91,13 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
     public function savedPost(){
         return $this->hasOne(SavedPost::class);
     }
+
+    public function groups()
+    {
+        return $this->belongsToMany(Group::class, 'members')
+                    ->withPivot('role')
+                    ->withTimestamps();
+    }
     /**
      * createing the follow relationship between users
      * and there are many functions :

@@ -12,18 +12,29 @@ class Group extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'privacy', 'creator_id'];
+    protected $fillable = ['name', 'privacy', 'owner_id','bio'];
 
-    public function creator(): BelongsTo
+    public function owner(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'creator_id');
+        return $this->belongsTo(User::class, 'owner_id');
     }
 
     public function media(): MorphOne
     {
-        return $this->morphOne(Media::class, 'mediable'); 
+        return $this->morphOne(Media::class, 'mediable');
     }
 
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
+
+    public function members()
+    {
+        return $this->belongsToMany(User::class, 'members')
+                    ->withPivot('role')
+                    ->withTimestamps();
+    }
     public function requests(): MorphMany
     {
         return $this->morphMany(Request::class, 'requestable');

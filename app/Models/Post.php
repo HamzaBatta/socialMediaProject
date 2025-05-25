@@ -19,6 +19,11 @@ class Post extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function group()
+    {
+        return $this->belongsTo(Group::class);
+    }
+
    /**
      * Get all media items for the post.
      */
@@ -45,4 +50,6 @@ class Post extends Model
     public function savedPosts(){
         return $this->belongsToMany(SavedPost::class,'post_saved_posts');
     }
+
+
 }

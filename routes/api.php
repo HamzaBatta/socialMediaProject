@@ -98,16 +98,19 @@ Route::middleware('auth:api')->prefix('groups')->group(function () {
     Route::get('/{group}', [GroupController::class, 'show']);
 
     // Update a group (full or partial)
-    Route::match(['put', 'patch'], '/{group}', [GroupController::class, 'update']);
+    Route::post( '/{group}', [GroupController::class, 'update']);
 
     // Delete a group
     Route::delete('/{group}', [GroupController::class, 'destroy']);
 
     // Join a group
-    Route::post('/{group}/join', [GroupController::class, 'join']);
+    Route::post('/{group_id}/join', [GroupController::class, 'join']);
 
     // Leave a group
-    Route::post('/{group}/leave', [GroupController::class, 'leave']);
+    Route::post('/{group_id}/leave', [GroupController::class, 'leave']);
+    Route::get('/{group}/members', [GroupController::class, 'members']);
+    Route::get('/{group}/requests', [GroupController::class, 'pendingRequests']);
+    Route::post('/{group}/requests/respond', [GroupController::class, 'respondToRequest']);
 });
 
 Route::middleware('auth:api')->prefix('users')->group(function () {
