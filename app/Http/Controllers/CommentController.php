@@ -45,7 +45,15 @@ class CommentController extends Controller
             ];
         });
 
-        return response()->json(['comments' => $comments]);
+        return response()->json([
+            'comments' => $comments->items(),
+            'pagination' => [
+                'current_page' => $comments->currentPage(),
+                'per_page' => $comments->perPage(),
+                'total' => $comments->total(),
+                'last_page' => $comments->lastPage(),
+            ],
+        ]);
     }
 
     public function store(Request $request)
