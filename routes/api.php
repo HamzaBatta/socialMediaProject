@@ -74,8 +74,7 @@ Route::middleware('auth:api')->group(function () {
 
     //User
     Route::get('/user/check-username', [UserController::class, 'checkUsername']);
-    Route::post('/user/update', [UserController::class, 'updateProfile']); // name, username, bio, avatar, privacy
-    Route::post('/user/updatePersonalInfo',[UserController::class,'updatePersonalInfo']);
+    Route::post('/user/update', [UserController::class, 'updateProfile']); // name, username, bio, avatar, privacy , personal_info
     Route::get('/user/{id}', [UserController::class, 'show']);
     Route::post('/user/changePassword',[UserController::class,'changePassword']);
     Route::post('/user/request-change-email-code', [UserController::class, 'requestChangeEmailCode']);
