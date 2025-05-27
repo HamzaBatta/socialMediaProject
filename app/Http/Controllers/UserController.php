@@ -87,6 +87,7 @@ class UserController extends Controller
             'bio' => 'nullable|string|max:255',
             'is_private' => 'nullable|boolean',
             'avatar' => 'nullable|image|max:2048',
+            'personal_info' => 'nullable|array',
         ]);
 
         if ($request->filled('username')) {
@@ -119,6 +120,10 @@ class UserController extends Controller
             ]);
         }
 
+        if($request->filled('personal_info')){
+            $user->personal_info = $request->personal_info;
+        }
+
         $user->save();
 
         $user->load('media');
@@ -136,18 +141,9 @@ class UserController extends Controller
                 'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
                 'is_private' => $user->is_private,
                 'bio' => $user->bio,
+                'personal_info' => $user->personal_info,
             ],
         ]);
-    }
-
-    public function updatePersonalInfo(Request $request){
-        $user = User::findOrFail(Auth::id());
-        $request->validate([
-            'personal_info' => 'required|array',
-        ]);
-        $user->personal_info = $request->input('personal_info');
-        $user->save();
-        return response()->json(['message' => 'personal info updated successfully.']);
     }
 
     public function changePassword(Request $request){
@@ -159,9 +155,9 @@ class UserController extends Controller
         $user = Auth::user();
 
         if(!Hash::check($request->current_password,$user->password)){
-            return response()->json(['message'=>'Current password is incorrect']);
+            return response()->json(['message'=>'Current password is incorrect'],422);
         }
-        $user->password= Hash::make($request->current_password);
+        $user->password= Hash::make($request->new_password);
         $user->save();
         return response()->json(['message'=>'Password changed successfully']);
     }
