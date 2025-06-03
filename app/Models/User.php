@@ -29,7 +29,8 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
         'password',
         'google_id',
         'bio',
-        'is_private'
+        'is_private',
+        'verification_code_sent_at'
     ];
     public function getJWTIdentifier()
     {

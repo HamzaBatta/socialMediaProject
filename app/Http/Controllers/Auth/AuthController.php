@@ -30,6 +30,7 @@ class AuthController extends Controller
 
         $code = mt_rand(1000, 9999);
         $user->verification_code = $code;
+        $user->verification_code_sent_at = now();
         $user->save();
 
         $user->savedPost()->create();
@@ -51,7 +52,12 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
+
         $user = User::with('media')->where('email', $request->email)->first();
+
+        if(!$user->email_verified_at){
+            return response()->json(['message'=>'Email Not Verified'],400);
+        }
 
         return response()->json([
             'message' => 'Login successful',
@@ -85,35 +91,54 @@ class AuthController extends Controller
                     ->where('verification_code', $request->code)
                     ->first();
 
-        if (!$user) {
-            return response()->json(['message' => 'Invalid code or email'], 400);
+        if (!$user || now()->diffInMinutes($user->verification_code_sent_at) > 60) {
+            return response()->json(['message' => 'Invalid or expired code'], 400);
         }
 
         $user->email_verified_at = now();
         $user->verification_code = null;
+        $user->verification_code_sent_at = null;
         $user->save();
 
         return response()->json(['message' => 'Email verified successfully']);
     }
 
-    public function requestResetCode(Request $request)
+    public function requestCode(Request $request)
     {
-        $request->validate(['email' => 'required|email|exists:users,email']);
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'reset_password' => 'nullable|boolean',
+            'verify_email' => 'nullable|boolean',
+        ]);
 
-        $code = mt_rand(1000, 9999);
+        $user = User::where('email', $request->email)->firstOrFail();
 
-        DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $request->email],
-            [
-                'token' => Hash::make(Str::random(60)),
-                'code' => $code,
-                'created_at' => now()
-            ]
-        );
+        if ($request->reset_password) {
+            $code = mt_rand(1000, 9999);
 
-        Mail::to($request->email)->send(new ResetPasswordEmails($code));
+            DB::table('password_reset_tokens')->updateOrInsert(
+                ['email' => $request->email],
+                [
+                    'token' => Hash::make(Str::random(60)),
+                    'code' => $code,
+                    'created_at' => now(),
+                ]
+            );
 
-        return response()->json(['message' => 'Reset code sent to your email.']);
+            Mail::to($user->email)->send(new ResetPasswordEmails($code));
+        }
+
+        if ($request->verify_email) {
+            $code = mt_rand(1000, 9999);
+
+            $user->verification_code = $code;
+            $user->verification_code_sent_at = now();
+            $user->save();
+
+            Mail::to($user->email)->send(new VerifyEmails($code));
+        }
+
+        return response()->json(['message' => 'Code sent successfully.']);
     }
 
     public function verifyResetCode(Request $request)

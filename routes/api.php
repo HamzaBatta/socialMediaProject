@@ -21,7 +21,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::post('/verify-code', [AuthController::class, 'verifyCode']);
-Route::post('/request-reset-code', [AuthController::class, 'requestResetCode']);
+Route::post('/request-code', [AuthController::class, 'requestCode']);
 Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
 
 // {====== Public Read-Only Routes ======}

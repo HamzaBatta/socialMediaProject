@@ -169,6 +169,7 @@ class UserController extends Controller
         $code = mt_rand(1000, 9999);
 
         $user->verification_code = $code;
+        $user->verification_code_sent_at = now();
         $user->save();
 
         Mail::to($user->email)->send(new ChangeemailEmails($code));
@@ -184,8 +185,8 @@ class UserController extends Controller
 
         $user = Auth::user();
 
-        if ($user->verification_code != $request->code) {
-            return response()->json(['message' => 'Invalid verification code.'], 422);
+        if ($user->verification_code != $request->code || now()->diffInMinutes($user->verification_code_sent_at) > 60) {
+            return response()->json(['message' => 'Invalid or expired code'], 400);
         }
 
         $user->email = $request->new_email;
@@ -193,6 +194,7 @@ class UserController extends Controller
 
         $code = mt_rand(1000, 9999);
         $user->verification_code = $code;
+        $user->verification_code_sent_at = now();
         $user->save();
 
         Mail::to($request->new_email)->send(new VerifyEmails($code));
