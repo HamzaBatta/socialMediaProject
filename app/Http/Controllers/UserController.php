@@ -20,28 +20,38 @@ class UserController extends Controller
     public function show($id)
     {
         $authUser = Auth::user();
+        $user = User::findOrFail($id);
 
-        $user = User::findOrFail($id);
-        if($authUser->id!==$user->id){
-            if($user->is_private){
-                $requester = User::findOrFail(Auth::id());
-                if(!$requester->isFollowing($user)){
-                    return response()->json(['message' => 'this user is private'], 403);
-                }
-            }
+        $isOwner = $authUser->id === $user->id;
+        $isFollowing = $authUser->isFollowing($user);
+
+        if (!$isOwner && $user->is_private && !$isFollowing) {
+            return response()->json([
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
+                'is_private' => $user->is_private,
+                'posts_count' => $user->posts()->count(),
+                'followers_count' => $user->followers()->count(),
+                'following_count' => $user->following()->count(),
+            ]);
         }
-        $user = User::findOrFail($id);
 
         return response()->json([
             'id' => $user->id,
             'name' => $user->name,
-            'Email' => $user->email,
+            'email' => $user->email,
             'username' => $user->username,
             'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
             'bio' => $user->bio,
             'is_private' => $user->is_private,
             'created_at' => $user->created_at,
-            'personal_info'=> $user->personal_info,
+            'personal_info' => $user->personal_info,
+            'posts_count' => $user->posts()->count(),
+            'followers_count' => $user->followers()->count(),
+            'following_count' => $user->following()->count(),
+            'is_following' => $isOwner ? 'owner' : $isFollowing,
         ]);
     }
 
