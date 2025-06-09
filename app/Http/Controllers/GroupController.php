@@ -169,8 +169,16 @@ class GroupController extends Controller
             $group->media()->delete();
         }
 
-        $group->delete();
+        //delete group's posts and their media
+        foreach ($group->posts as $post) {
+            foreach ($post->media as $media) {
+                Storage::disk('public')->delete($media->path);
+                $media->delete();
+            }
+            $post->delete();
+        }
 
+        $group->delete();
         return response()->json(['message' => 'Group deleted successfully.'], 204);
     }
 

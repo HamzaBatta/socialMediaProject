@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\ChangeEmailEmails;
 use App\Mail\VerifyEmails;
+use App\Models\Group;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -211,5 +212,67 @@ class UserController extends Controller
 
 
         return response()->json(['message' => 'Email changed successfully.']);
+    }
+
+    public function destroy()
+    {
+        $user = Auth::user();
+
+        //delete user avatar
+        if ($user->media) {
+            Storage::disk('public')->delete($user->media->path);
+            $user->media()->delete();
+        }
+
+        //delete user's posts
+        foreach ($user->posts as $post) {
+            foreach ($post->media as $media) {
+                Storage::disk('public')->delete($media->path);
+                $media->delete();
+            }
+            $post->delete();
+        }
+
+        //delete user's stories
+        foreach ($user->stories as $story) {
+            foreach ($story->media as $media) {
+                Storage::disk('public')->delete($media->path);
+                $media->delete();
+            }
+            $story->delete();
+        }
+
+        //handle groups the user owns
+        $ownedGroups = Group::where('owner_id', $user->id)->get();
+
+        foreach ($ownedGroups as $group) {
+            $adminMember = $group->members()->where('role', 'admin')->first();
+
+            if ($adminMember) {
+                $group->update(['owner_id' => $adminMember->user_id]);
+                $adminMember->update(['role' => 'owner']);
+            } else {
+                //delete group avatar
+                if ($group->media) {
+                    Storage::disk('public')->delete($group->media->path);
+                    $group->media()->delete();
+                }
+
+                //delete group's posts
+                foreach ($group->posts as $post) {
+                    foreach ($post->media as $media) {
+                        Storage::disk('public')->delete($media->path);
+                        $media->delete();
+                    }
+                    $post->delete();
+                }
+
+                $group->delete();
+            }
+        }
+
+        $user->groups()->detach();
+        $user->delete();
+        return response()->json(['message' => 'User and related data deleted successfully']);
     }
 }
