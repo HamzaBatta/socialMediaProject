@@ -18,7 +18,9 @@ class CommentController extends Controller
         $perPage = 10;
         $page = $request->query('page', 1);
 
-        $query = Comment::query()->with(['user.media'])->withCount('likes');
+        $query = Comment::query()
+                        ->with(['user.media'])
+                        ->withCount(['likes', 'replies']);
 
         if ($request->filled('post_id')) {
             $query->where('post_id', $request->post_id)
@@ -36,6 +38,7 @@ class CommentController extends Controller
                 'id' => $comment->id,
                 'text' => $comment->text,
                 'likes_count' => $comment->likes_count,
+                'replies_count' => $comment->replies_count,
                 'user' => [
                     'id' => $comment->user->id,
                     'name' => $comment->user->name,

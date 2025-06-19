@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
 class Status extends Model
 {
     use HasFactory;
-    protected $fillable = ['user_id', 'text', 'expires_at', 'is_active'];
+    protected $fillable = ['user_id', 'text', 'expires_at', 'privacy'];
 
     public function user(): BelongsTo
     {

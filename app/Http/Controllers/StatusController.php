@@ -7,8 +7,8 @@ use App\Http\Requests\StoreStatusRequest;
 use App\Http\Requests\UpdateStatusRequest;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
-use App\Models\User; // Added import for User model
-use Illuminate\Support\Facades\Auth; // Added import for Auth facade
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 
 class StatusController extends Controller
 {
@@ -20,15 +20,27 @@ class StatusController extends Controller
 
         $owner = User::findOrFail($request->user_id);
         $authUser = Auth::user();
+        $isOwner = $authUser->id === $owner->id;
+        $isFollower = $owner->followers()->where('follower_id', $authUser->id)->exists();
 
-        if ($authUser->id !== $owner->id) {
-            if ($owner->is_private && !$owner->followers()->where('follower_id', Auth::id())->exists()) {
-                return response()->json(['message' => 'you don\'t follow this user']);
+        if (!$isOwner) {
+            if ($owner->is_private && !$isFollower) {
+                return response()->json(['message' => 'You don\'t follow this user.'], 403);
             }
         }
 
         $statuses = Status::where('user_id', $owner->id)
                           ->where('expiration_date', '>', now())
+                          ->when(!$isOwner, function ($query) use ($owner, $isFollower) {
+                              $query->where(function ($subQuery) use ($owner, $isFollower) {
+                                  $subQuery->where('privacy', 'public');
+
+                                  //allow private statuses if the viewer is a follower
+                                  if ($isFollower) {
+                                      $subQuery->orWhere('privacy', 'private');
+                                  }
+                              });
+                          })
                           ->with(['media', 'user'])
                           ->latest()
                           ->get();
@@ -38,6 +50,7 @@ class StatusController extends Controller
                 'id' => $status->id,
                 'text' => $status->text,
                 'expiration_date' => $status->expiration_date,
+                'privacy' => $status->privacy,
                 'media' => $status->media ? [
                     'id' => $status->media->id,
                     'type' => $status->media->type,
@@ -47,7 +60,7 @@ class StatusController extends Controller
                 'user' => [
                     'id' => $status->user->id,
                     'name' => $status->user->name,
-                    'username' =>$status->user->username,
+                    'username' => $status->user->username,
                     'avatar' => $status->user->media ? url("storage/{$status->user->media->path}") : null,
                 ],
             ]),
@@ -59,11 +72,13 @@ class StatusController extends Controller
         $request->validate([
             'text' => 'nullable|string',
             'media' => 'nullable|file',
+            'privacy'   => ['required', 'in:public,private'],
         ]);
         $status = Status::create([
             'user_id' => Auth::id(), // Changed to use Auth facade
             'text' => $request->text,
             'expiration_date' => now()->addDay(),
+            'privacy' => $request->privacy
         ]);
 
         if ($request->hasFile('media')) {
@@ -76,7 +91,7 @@ class StatusController extends Controller
             ]);
         }
 
-        return response()->json(['message' => 'Status created successfully', 'status_id' => $status->id], 201);
+        return response()->json(['message' => 'Status created successfully', 'status' => $status], 201);
     }
 
     public function show(Request $request, $id)
@@ -94,6 +109,7 @@ class StatusController extends Controller
                 'type' => $status->media->type,
                 'url' => url("storage/{$status->media->path}"),
             ] : null,
+            'privacy' => $status->privacy,
             'created_at' => $status->created_at,
             'user' => [
                 'id' => $status->user->id,

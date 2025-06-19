@@ -79,6 +79,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/user/changePassword',[UserController::class,'changePassword']);
     Route::post('/user/request-change-email-code', [UserController::class, 'requestChangeEmailCode']);
     Route::post('/user/verify-change-email-code', [UserController::class, 'verifyChangeEmailCode']);
+    Route::delete('user/delete',[UserController::class,'destroy']);
 
     //Saved Collection
     Route::get('/saved-posts', [SavedPostController::class, 'index']);

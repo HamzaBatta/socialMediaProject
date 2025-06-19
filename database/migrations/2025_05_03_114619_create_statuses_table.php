@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->text('text')->nullable();
+            $table->enum('privacy', ['public', 'private'])->default('public');
             $table->timestamp('expiration_date');
             $table->timestamps();
         });

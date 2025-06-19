@@ -23,18 +23,25 @@ class StatusPolicy
     {
         $owner = $status->user;
 
-        // It's your own post
-        if ($authUser->id === $owner->user_id) {
+        //it's your own status
+        if ($authUser->id === $owner->id) {
             return true;
         }
 
+        $isFollower = $owner->followers()->where('follower_id', $authUser->id)->exists();
+
+        //owner is public
         if (!$owner->is_private) {
-            return true; // Public user
+            //if status is public, allow
+            if ($status->privacy === 'public') {
+                return true;
+            }
+            //status is private → only allow if viewer is a follower
+            return $isFollower;
         }
 
-        // Check if authUser follows the owner
-        return $owner->followers()->where('follower_id', $authUser->id)->exists();
-
+        //owner is private → only allow if viewer is a follower
+        return $isFollower;
     }
 
     /**
