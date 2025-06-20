@@ -81,6 +81,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/user/verify-change-email-code', [UserController::class, 'verifyChangeEmailCode']);
     Route::delete('user/delete',[UserController::class,'destroy']);
 
+    Route::get('followingWithStatus',[UserController::class,'followingWithStatus']);
+
     //Saved Collection
     Route::get('/saved-posts', [SavedPostController::class, 'index']);
     Route::post('/saved-posts/{id}', [SavedPostController::class, 'store']);

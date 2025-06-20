@@ -11,6 +11,7 @@ use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable implements JWTSubject,MustVerifyEmail
 {
@@ -87,6 +88,11 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
     public function media(): MorphOne
     {
         return $this->morphOne(Media::class, 'mediable'); // one-to-one polymorphic :contentReference[oaicite:8]{index=8}
+    }
+
+    public function statuses(): HasMany
+    {
+        return $this->hasMany(Status::class);
     }
 
     public function savedPost(){

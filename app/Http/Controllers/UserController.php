@@ -275,4 +275,28 @@ class UserController extends Controller
         $user->delete();
         return response()->json(['message' => 'User and related data deleted successfully']);
     }
+
+    public function followingWithStatus()
+    {
+        $user = Auth::user();
+        $followingWithStatuses = $user->following()
+                                      ->whereHas('statuses', function ($query) {
+                                          $query->where('expiration_date', '>', now());
+                                      })
+                                      ->with('media')
+                                      ->get()
+                                      ->map(function ($following) {
+                                          return [
+                                              'id' => $following->id,
+                                              'name' => $following->name,
+                                              'username' => $following->username,
+                                              'avatar' => $following->media
+                                                  ? url("storage/{$following->media->path}")
+                                                  : null,
+                                          ];
+                                      });
+        return response()->json([
+            'followings' => $followingWithStatuses,
+        ]);
+    }
 }
