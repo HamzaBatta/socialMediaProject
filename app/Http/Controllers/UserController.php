@@ -21,10 +21,20 @@ class UserController extends Controller
     public function show($id)
     {
         $authUser = Auth::user();
-        $user = User::findOrFail($id);
+        $user = User::with(['media','statuses'])->findOrFail($id);
 
         $isOwner = $authUser->id === $user->id;
         $isFollowing = $authUser->isFollowing($user);
+
+        $hasStatus = false;
+        if ($user->statuses->isNotEmpty()) {
+            if ($isOwner || $isFollowing) {
+                $hasStatus = true;
+            } elseif (!$user->is_private) {
+                $hasStatus = $user->statuses->contains(fn($status) => $status->privacy === 'public');
+            }
+        }
+
 
         if (!$isOwner && $user->is_private && !$isFollowing) {
             return response()->json([
@@ -36,6 +46,7 @@ class UserController extends Controller
                 'posts_count' => $user->posts()->count(),
                 'followers_count' => $user->followers()->count(),
                 'following_count' => $user->following()->count(),
+
             ]);
         }
 
@@ -53,6 +64,7 @@ class UserController extends Controller
             'followers_count' => $user->followers()->count(),
             'following_count' => $user->following()->count(),
             'is_following' => $isOwner ? 'owner' : $isFollowing,
+            'has_status' => $hasStatus,
         ]);
     }
 
