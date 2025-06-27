@@ -9,20 +9,15 @@ class Like extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'post_id', 'comment_id'];
+    protected $fillable = ['user_id','likeable_type','likeable_id'];
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    public function post()
+    public function likeable(): MorphTo
     {
-        return $this->belongsTo(Post::class);
-    }
-
-    public function comment()
-    {
-        return $this->belongsTo(Comment::class);
+        return $this->morphTo();
     }
 }

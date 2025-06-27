@@ -41,7 +41,7 @@ class StatusController extends Controller
                                   }
                               });
                           })
-                          ->with(['media', 'user'])
+                          ->with(['media', 'user'])->withCount('likes')
                           ->latest()
                           ->get();
 
@@ -51,6 +51,8 @@ class StatusController extends Controller
                 'text' => $status->text,
                 'expiration_date' => $status->expiration_date,
                 'privacy' => $status->privacy,
+                'likes_count' => $status->likes_count,
+                'is_liked' => $status->isLikedBy($authUser->id),
                 'media' => $status->media ? [
                     'id' => $status->media->id,
                     'type' => $status->media->type,
@@ -96,7 +98,10 @@ class StatusController extends Controller
 
     public function show(Request $request, $id)
     {
-        $status = Status::with('media', 'user')->findOrFail($id);
+        $authUser = Auth::user();
+        $status = Status::with('media', 'user')
+                        ->withCount('likes')
+                        ->findOrFail($id);
 
         $this->authorize('view', $status);
 
@@ -104,12 +109,14 @@ class StatusController extends Controller
             'id' => $status->id,
             'text' => $status->text,
             'expiration_date' => $status->expiration_date,
+            'privacy' => $status->privacy,
+            'likes_count' => $status->likes_count,
+            'is_liked' => $status->isLikedBy($authUser->id),
             'media' => $status->media ? [
                 'id' => $status->media->id,
                 'type' => $status->media->type,
                 'url' => url("storage/{$status->media->path}"),
             ] : null,
-            'privacy' => $status->privacy,
             'created_at' => $status->created_at,
             'user' => [
                 'id' => $status->user->id,

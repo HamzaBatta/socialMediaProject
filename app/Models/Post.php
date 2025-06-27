@@ -32,9 +32,9 @@ class Post extends Model
         return $this->morphMany(Media::class, 'mediable'); // one-to-many polymorphic :contentReference[oaicite:6]{index=6}
     }
 
-    public function likes(): HasMany
+    public function likes(): MorphMany
     {
-        return $this->hasMany(Like::class);
+        return $this->morphMany(Like::class, 'likeable');
     }
 
     public function comments(): HasMany
