@@ -148,7 +148,7 @@ class PostController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        return response()->json([
+        return response()->json(['post'=>[
             'id' => $post->id,
             'text' => $post->text,
             'likes_count' => $post->likes_count,
@@ -169,7 +169,7 @@ class PostController extends Controller
                     ? url("storage/{$post->user->media->path}")
                     : null,
             ],
-        ]);
+        ]]);
     }
 
     public function update(Request $request, $id)

@@ -60,4 +60,41 @@ class LikeController extends Controller
             return response()->json(['message' => 'Liked successfully'], 201);
         }
     }
+
+    public function likedUsers(Request $request)
+    {
+        $request->validate([
+            'post_id' => 'nullable|exists:posts,id',
+            'status_id' => 'nullable|exists:statuses,id',
+        ]);
+
+        if (!$request->post_id && !$request->status_id) {
+            return response()->json(['message' => 'post_id or status_id is required'], 422);
+        }
+
+        if ($request->post_id && $request->status_id) {
+            return response()->json(['message' => 'Only one of post_id or status_id should be provided'], 422);
+        }
+
+        $likeableType = $request->post_id ? Post::class : Status::class;
+        $likeableId = $request->post_id ?? $request->status_id;
+
+        $likes = Like::with('user.media')
+                     ->where('likeable_type', $likeableType)
+                     ->where('likeable_id', $likeableId)
+                     ->get();
+
+        $users = $likes->map(function ($like) {
+            return [
+                'id' => $like->user->id,
+                'name' => $like->user->name,
+                'username' => $like->user->username,
+                'avatar' => $like->user->media ? url("storage/{$like->user->media->path}") : null,
+            ];
+        });
+
+        return response()->json([
+            'users' => $users,
+        ]);
+    }
 }

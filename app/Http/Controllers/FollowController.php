@@ -18,14 +18,14 @@ class FollowController extends Controller
     {
         $currentUser = User::findOrFail(Auth::id());
         $targetUser = User::findOrFail($request->targetId);
-        
+
         if ($currentUser->id === $targetUser->id) {
             return response()->json(['message' => 'You cannot follow yourself.'], 400);
         }
-    
+
         // handle the case if we are not following the user already
         if (! $currentUser->isFollowing($targetUser)) {
-            // handle the case of a private account 
+            // handle the case of a private account
             // 1- create the request to the other user
             if($targetUser->is_private){
                 $existing = $targetUser->requests()
@@ -43,7 +43,7 @@ class FollowController extends Controller
 
                 $existing->delete();
                 return response()->json(['message' => 'Follow request withdrawn.'], 200);
-                 
+
             }
 
 
@@ -55,8 +55,8 @@ class FollowController extends Controller
             }
             return response()->json(['message' => 'User followed successfully.'], 200);
         }
-        
-    
+
+
         // 4. Already following
         return response()->json(['message' => 'You are already following this user.'], 409);
     }
@@ -79,16 +79,32 @@ class FollowController extends Controller
     {
         $targetUserId = $request->route('user');
         $targetUser = User::findOrFail($targetUserId);
-        $followers = $targetUser->followers()->get();
-        return response()->json($followers);
+        $followers = $targetUser->followers()->get()->map(function ($follower) {
+            return [
+                'id' => $follower->id,
+                'name' => $follower->name,
+                'username' => $follower->username,
+                'avatar' => $follower->media
+                    ? url("storage/{$follower->media->path}")
+                    : null,
+            ];
+        });
+        return response()->json(['followers' => $followers]);
     }
 
     public function following(Request $request)
     {
         $targetUserId = $request->route('user');
         $targetUser = User::findOrFail($targetUserId);
-        $following = $targetUser->following()->get();
-        return response()->json($following);
+        $following = $targetUser->following()->get()->map(function ($following){
+            return [
+                'id' => $following->id,
+                'name' => $following->name,
+                'username' => $following->username,
+                'avatar' => $following->media ? url("storage/{$following->media->path}") : null,
+            ];
+        });
+        return response()->json(['following' => $following]);
     }
 
     /**

@@ -45,7 +45,10 @@ class SavedPostController extends Controller
             ];
         });
 
-        return response()->json($posts);
+        return response()->json([
+            'saved_posts' => $posts,
+            'message' => 'Saved posts retrieved successfully.'
+        ],200);
     }
 
     public function store(Request $request,$post_id)

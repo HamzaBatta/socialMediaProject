@@ -37,7 +37,7 @@ class UserController extends Controller
 
 
         if (!$isOwner && $user->is_private && !$isFollowing) {
-            return response()->json([
+            return response()->json(['user'=>[
                 'id' => $user->id,
                 'name' => $user->name,
                 'username' => $user->username,
@@ -47,10 +47,10 @@ class UserController extends Controller
                 'followers_count' => $user->followers()->count(),
                 'following_count' => $user->following()->count(),
 
-            ]);
+            ]]);
         }
 
-        return response()->json([
+        return response()->json(['user'=>[
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
@@ -65,7 +65,7 @@ class UserController extends Controller
             'following_count' => $user->following()->count(),
             'is_following' => $isOwner ? 'owner' : $isFollowing,
             'has_status' => $hasStatus,
-        ]);
+        ]]);
     }
 
     public function checkUsername(Request $request)

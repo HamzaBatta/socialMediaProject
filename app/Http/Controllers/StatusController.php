@@ -105,7 +105,7 @@ class StatusController extends Controller
 
         $this->authorize('view', $status);
 
-        return response()->json([
+        return response()->json(['status'=>[
             'id' => $status->id,
             'text' => $status->text,
             'expiration_date' => $status->expiration_date,
@@ -124,7 +124,7 @@ class StatusController extends Controller
                 'username' =>$status->user->username,
                 'avatar' => $status->user->media ? url("storage/{$status->user->media->path}") : null,
             ],
-        ]);
+        ]]);
     }
 
     public function destroy($id)

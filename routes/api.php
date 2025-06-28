@@ -66,6 +66,7 @@ Route::middleware('auth:api')->group(function () {
 
     // Likes
     Route::post('/likes', [LikeController::class, 'toggle']);
+    Route::get('/likes/users',[LikeController::class,'likedUsers']);
 
     //Statuses
     Route::post('/statuses',[StatusController::class,'store']);
@@ -124,6 +125,5 @@ Route::middleware('auth:api')->prefix('users')->group(function () {
     Route::get('/requests', [RequestController::class, 'show']);
 });
 
-// Route::post('/users/follow', [FollowController::class, 'follow']);
 
 
