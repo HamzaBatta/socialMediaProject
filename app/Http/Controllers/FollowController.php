@@ -77,9 +77,12 @@ class FollowController extends Controller
 
     public function followers(Request $request)
     {
+        $authUser = Auth::user();
         $targetUserId = $request->route('user');
         $targetUser = User::findOrFail($targetUserId);
-        $followers = $targetUser->followers()->get()->map(function ($follower) {
+        $followers = $targetUser->followers()->get()->map(function ($follower)use($authUser) {
+            $isOwner = $authUser->id === $follower->id;
+            $isFollowing = $authUser->isFollowing($follower);
             return [
                 'id' => $follower->id,
                 'name' => $follower->name,
@@ -87,6 +90,7 @@ class FollowController extends Controller
                 'avatar' => $follower->media
                     ? url("storage/{$follower->media->path}")
                     : null,
+                'is_following' => $isOwner ? 'owner' : $isFollowing,
             ];
         });
         return response()->json(['followers' => $followers]);
@@ -94,14 +98,18 @@ class FollowController extends Controller
 
     public function following(Request $request)
     {
+        $authUser = Auth::user();
         $targetUserId = $request->route('user');
         $targetUser = User::findOrFail($targetUserId);
-        $following = $targetUser->following()->get()->map(function ($following){
+        $following = $targetUser->following()->get()->map(function ($following)use($authUser){
+            $isOwner = $authUser->id === $following->id;
+            $isFollowing = $authUser->isFollowing($following);
             return [
                 'id' => $following->id,
                 'name' => $following->name,
                 'username' => $following->username,
                 'avatar' => $following->media ? url("storage/{$following->media->path}") : null,
+                'is_following' => $isOwner ? 'owner' : $isFollowing,
             ];
         });
         return response()->json(['following' => $following]);
@@ -114,25 +122,41 @@ class FollowController extends Controller
      * @param  int  $requestId
      * @return \Illuminate\Http\JsonResponse
      */
-    public function acceptRequest(Request $httpRequest, $requestId)
+    public function respondToRequest(Request $httpRequest, $requestId)
     {
         $currentUser = Auth::user();
 
-        $followRequest = FollowRequest::where('id', $requestId)
-            ->where('requestable_type', User::class)
-            ->where('requestable_id', $currentUser->id)
-            ->where('state', 'pending')
-            ->firstOrFail();
+        $state = $httpRequest->input('state');
 
+        if (!in_array($state, ['approved', 'rejected'])) {
+            return response()->json(['message' => 'Invalid action. Use approved or rejected.'], 422);
+        }
+
+        $followRequest = FollowRequest::where('id', $requestId)
+                                      ->where('requestable_type', User::class)
+                                      ->where('requestable_id', $currentUser->id)
+                                      ->where('state', 'pending')
+                                      ->firstOrFail();
+
+        if ($state === 'approved') {
+            $followRequest->update([
+                'state'        => 'approved',
+                'responded_at' => now(),
+            ]);
+
+            $requestingUser = User::findOrFail($followRequest->user_id);
+            $requestingUser->following()->attach($currentUser->id);
+
+            return response()->json(['message' => 'Follow request approved.'], 200);
+        }
+
+        //reject
         $followRequest->update([
-            'state'        => 'approved',
+            'state'        => 'rejected',
             'responded_at' => now(),
         ]);
 
-        $requestingUser = User::findOrFail($followRequest->user_id);
-        $requestingUser->following()->attach($currentUser->id);
-
-        return response()->json(['message' => 'Follow request accepted.'], 200);
+        return response()->json(['message' => 'Follow request rejected.'], 200);
     }
 
 }

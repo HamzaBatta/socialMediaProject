@@ -46,7 +46,7 @@ class UserController extends Controller
                 'posts_count' => $user->posts()->count(),
                 'followers_count' => $user->followers()->count(),
                 'following_count' => $user->following()->count(),
-
+                'is_following' => $isFollowing,
             ]]);
         }
 

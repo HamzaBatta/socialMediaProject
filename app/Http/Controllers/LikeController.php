@@ -79,17 +79,24 @@ class LikeController extends Controller
         $likeableType = $request->post_id ? Post::class : Status::class;
         $likeableId = $request->post_id ?? $request->status_id;
 
+        $authUser = Auth::user();
+
+
         $likes = Like::with('user.media')
                      ->where('likeable_type', $likeableType)
                      ->where('likeable_id', $likeableId)
                      ->get();
 
-        $users = $likes->map(function ($like) {
+        $users = $likes->map(function ($like)use($authUser) {
+            $isOwner = $authUser->id === $like->user->id;
+            $isFollowing = $authUser->isFollowing($like->user);
+
             return [
                 'id' => $like->user->id,
                 'name' => $like->user->name,
                 'username' => $like->user->username,
                 'avatar' => $like->user->media ? url("storage/{$like->user->media->path}") : null,
+                'is_following' => $isOwner ? 'owner' : $isFollowing,
             ];
         });
 

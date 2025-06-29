@@ -118,7 +118,7 @@ Route::middleware('auth:api')->prefix('groups')->group(function () {
 
 Route::middleware('auth:api')->prefix('users')->group(function () {
     Route::post('/followUser', [FollowController::class, 'follow']);
-    Route::post('/requests/{request}/accept', [FollowController::class, 'acceptRequest']);
+    Route::post('/follow/request/{id}', [FollowController::class, 'respondToRequest']);
     Route::delete('/{user}/unfollow', [FollowController::class, 'unfollow']);
     Route::get('/{user}/followers', [FollowController::class, 'followers']);
     Route::get('/{user}/following', [FollowController::class, 'following']);
