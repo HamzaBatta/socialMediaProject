@@ -23,8 +23,13 @@ class UserController extends Controller
         $authUser = Auth::user();
         $user = User::with(['media','statuses'])->findOrFail($id);
 
+        if ($authUser->isBlockedBy($user)) {
+            return response()->json(['message' => 'You cannot view this profile.'], 403);
+        }
+
         $isOwner = $authUser->id === $user->id;
         $isFollowing = $authUser->isFollowing($user);
+        $hasBlocked = $authUser->hasBlocked($user);
 
         $hasStatus = false;
         if ($user->statuses->isNotEmpty()) {
@@ -47,6 +52,7 @@ class UserController extends Controller
                 'followers_count' => $user->followers()->count(),
                 'following_count' => $user->following()->count(),
                 'is_following' => $isFollowing,
+                'is_blocked' => $hasBlocked,
             ]]);
         }
 
@@ -65,6 +71,7 @@ class UserController extends Controller
             'following_count' => $user->following()->count(),
             'is_following' => $isOwner ? 'owner' : $isFollowing,
             'has_status' => $hasStatus,
+            'is_blocked' => $hasBlocked,
         ]]);
     }
 

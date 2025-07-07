@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\BlockController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GroupController;
@@ -122,7 +123,11 @@ Route::middleware('auth:api')->prefix('users')->group(function () {
     Route::delete('/{user}/unfollow', [FollowController::class, 'unfollow']);
     Route::get('/{user}/followers', [FollowController::class, 'followers']);
     Route::get('/{user}/following', [FollowController::class, 'following']);
-    Route::get('/requests', [RequestController::class, 'show']);
+    Route::get('/requests', [RequestController::class, 'show'])
+    ;
+    Route::post('/block', [BlockController::class, 'block']);
+    Route::post('/unblock', [BlockController::class, 'unblock']);
+    Route::get('/blocked-users', [BlockController::class, 'blockedUsers']);
 });
 
 
