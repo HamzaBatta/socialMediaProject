@@ -81,27 +81,34 @@ class LikeController extends Controller
 
         $authUser = Auth::user();
 
+        // Get blocked and blocking user IDs
+        $blockedUserIds = $authUser->blockedUsers()->pluck('users.id');
+        $blockedByUserIds = $authUser->blockedByUsers()->pluck('users.id');
+        $excludedIds = $blockedUserIds->merge($blockedByUserIds);
 
+        // Fetch likes excluding blocked users
         $likes = Like::with('user.media')
                      ->where('likeable_type', $likeableType)
                      ->where('likeable_id', $likeableId)
+                     ->whereHas('user', function ($query) use ($excludedIds) {
+                         $query->whereNotIn('id', $excludedIds);
+                     })
                      ->get();
 
-        $users = $likes->map(function ($like)use($authUser) {
-            $isOwner = $authUser->id === $like->user->id;
-            $isFollowing = $authUser->isFollowing($like->user);
+        $users = $likes->map(function ($like) use ($authUser) {
+            $user = $like->user;
+            $isOwner = $authUser->id === $user->id;
+            $isFollowing = $authUser->isFollowing($user);
 
             return [
-                'id' => $like->user->id,
-                'name' => $like->user->name,
-                'username' => $like->user->username,
-                'avatar' => $like->user->media ? url("storage/{$like->user->media->path}") : null,
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
                 'is_following' => $isOwner ? 'owner' : $isFollowing,
             ];
         });
 
-        return response()->json([
-            'users' => $users,
-        ]);
+        return response()->json(['users' => $users]);
     }
 }

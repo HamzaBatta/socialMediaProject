@@ -24,6 +24,10 @@ class BlockController extends Controller
             return response()->json(['message' => 'You have already blocked this user.'], 409);
         }
 
+        $targetUser->following()->detach($currentUser->id);
+
+        $currentUser->following()->detach($targetUser->id);
+
         $currentUser->blockedUsers()->attach($targetUser->id);
 
         return response()->json(['message' => 'User blocked successfully.'], 200);

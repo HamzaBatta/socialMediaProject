@@ -80,19 +80,30 @@ class FollowController extends Controller
         $authUser = Auth::user();
         $targetUserId = $request->route('user');
         $targetUser = User::findOrFail($targetUserId);
-        $followers = $targetUser->followers()->get()->map(function ($follower)use($authUser) {
-            $isOwner = $authUser->id === $follower->id;
-            $isFollowing = $authUser->isFollowing($follower);
-            return [
-                'id' => $follower->id,
-                'name' => $follower->name,
-                'username' => $follower->username,
-                'avatar' => $follower->media
-                    ? url("storage/{$follower->media->path}")
-                    : null,
-                'is_following' => $isOwner ? 'owner' : $isFollowing,
-            ];
-        });
+
+        //get list of user IDs that are blocked or blocked you
+        $blockedUserIds = $authUser->blockedUsers()->pluck('users.id');
+        $blockedByUserIds = $authUser->blockedByUsers()->pluck('users.id');
+        $excludedIds = $blockedUserIds->merge($blockedByUserIds);
+
+        $followers = $targetUser->followers()
+                                ->whereNotIn('users.id', $excludedIds)
+                                ->with('media')
+                                ->get()
+                                ->map(function ($follower) use ($authUser) {
+                                    $isOwner = $authUser->id === $follower->id;
+                                    $isFollowing = $authUser->isFollowing($follower);
+                                    return [
+                                        'id' => $follower->id,
+                                        'name' => $follower->name,
+                                        'username' => $follower->username,
+                                        'avatar' => $follower->media
+                                            ? url("storage/{$follower->media->path}")
+                                            : null,
+                                        'is_following' => $isOwner ? 'owner' : $isFollowing,
+                                    ];
+                                });
+
         return response()->json(['followers' => $followers]);
     }
 
@@ -101,17 +112,28 @@ class FollowController extends Controller
         $authUser = Auth::user();
         $targetUserId = $request->route('user');
         $targetUser = User::findOrFail($targetUserId);
-        $following = $targetUser->following()->get()->map(function ($following)use($authUser){
-            $isOwner = $authUser->id === $following->id;
-            $isFollowing = $authUser->isFollowing($following);
-            return [
-                'id' => $following->id,
-                'name' => $following->name,
-                'username' => $following->username,
-                'avatar' => $following->media ? url("storage/{$following->media->path}") : null,
-                'is_following' => $isOwner ? 'owner' : $isFollowing,
-            ];
-        });
+
+        //get list of user IDs that are blocked or blocked you
+        $blockedUserIds = $authUser->blockedUsers()->pluck('users.id');
+        $blockedByUserIds = $authUser->blockedByUsers()->pluck('users.id');
+        $excludedIds = $blockedUserIds->merge($blockedByUserIds);
+
+        $following = $targetUser->following()
+                                ->whereNotIn('users.id', $excludedIds)
+                                ->with('media')
+                                ->get()
+                                ->map(function ($followedUser) use ($authUser) {
+                                    $isOwner = $authUser->id === $followedUser->id;
+                                    $isFollowing = $authUser->isFollowing($followedUser);
+                                    return [
+                                        'id' => $followedUser->id,
+                                        'name' => $followedUser->name,
+                                        'username' => $followedUser->username,
+                                        'avatar' => $followedUser->media ? url("storage/{$followedUser->media->path}") : null,
+                                        'is_following' => $isOwner ? 'owner' : $isFollowing,
+                                    ];
+                                });
+
         return response()->json(['following' => $following]);
     }
 

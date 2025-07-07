@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CommentController extends Controller
 {
@@ -17,6 +18,7 @@ class CommentController extends Controller
 
         $perPage = 10;
         $page = $request->query('page', 1);
+        $authUser = Auth::user();
 
         $query = Comment::query()
                         ->with(['user.media'])
@@ -30,6 +32,14 @@ class CommentController extends Controller
         } else {
             return response()->json(['message' => 'post_id or comment_id is required'], 422);
         }
+
+        // Exclude comments where the comment author has blocked the auth user
+        // or the auth user has blocked the comment author
+        $query->whereDoesntHave('user.blockedUsers', function ($q) use ($authUser) {
+            $q->where('blocked_id', $authUser->id); // They blocked me
+        })->whereDoesntHave('user.blockedByUsers', function ($q) use ($authUser) {
+            $q->where('blocker_id', $authUser->id); // I blocked them
+        });
 
         $comments = $query->paginate($perPage, ['*'], 'page', $page);
 
