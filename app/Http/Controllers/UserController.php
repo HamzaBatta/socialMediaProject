@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Symfony\Component\Routing\Route;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use App\Models\Request as FollowRequest;
 
 class UserController extends Controller
 {
@@ -30,6 +31,14 @@ class UserController extends Controller
         $isOwner = $authUser->id === $user->id;
         $isFollowing = $authUser->isFollowing($user);
         $hasBlocked = $authUser->hasBlocked($user);
+
+        $isRequested = false;
+
+        $isRequested = FollowRequest::where('user_id',$authUser->id)
+                              ->where('requestable_type',User::class)
+                              ->where('requestable_id',$user->id)
+                              ->where('state','pending')
+                              ->exists();
 
         $hasStatus = false;
         if ($user->statuses->isNotEmpty()) {
@@ -53,6 +62,7 @@ class UserController extends Controller
                 'following_count' => $user->following()->count(),
                 'is_following' => $isFollowing,
                 'is_blocked' => $hasBlocked,
+                'is_requested' => $isRequested
             ]]);
         }
 

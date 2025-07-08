@@ -86,21 +86,30 @@ class FollowController extends Controller
         $blockedByUserIds = $authUser->blockedByUsers()->pluck('users.id');
         $excludedIds = $blockedUserIds->merge($blockedByUserIds);
 
+
+
         $followers = $targetUser->followers()
                                 ->whereNotIn('users.id', $excludedIds)
                                 ->with('media')
                                 ->get()
-                                ->map(function ($follower) use ($authUser) {
-                                    $isOwner = $authUser->id === $follower->id;
-                                    $isFollowing = $authUser->isFollowing($follower);
+                                ->map(function ($user) use ($authUser) {
+                                    $isOwner = $authUser->id === $user->id;
+                                    $isFollowing = $authUser->isFollowing($user);
+                                    $isRequested = false;
+                                    $isRequested = FollowRequest::where('user_id',$authUser->id)
+                                                                ->where('requestable_type',User::class)
+                                                                ->where('requestable_id',$user->id)
+                                                                ->where('state','pending')
+                                                                ->exists();
                                     return [
-                                        'id' => $follower->id,
-                                        'name' => $follower->name,
-                                        'username' => $follower->username,
-                                        'avatar' => $follower->media
-                                            ? url("storage/{$follower->media->path}")
+                                        'id' => $user->id,
+                                        'name' => $user->name,
+                                        'username' => $user->username,
+                                        'avatar' => $user->media
+                                            ? url("storage/{$user->media->path}")
                                             : null,
                                         'is_following' => $isOwner ? 'owner' : $isFollowing,
+                                        'is_requested' => $isRequested
                                     ];
                                 });
 
@@ -122,15 +131,22 @@ class FollowController extends Controller
                                 ->whereNotIn('users.id', $excludedIds)
                                 ->with('media')
                                 ->get()
-                                ->map(function ($followedUser) use ($authUser) {
-                                    $isOwner = $authUser->id === $followedUser->id;
-                                    $isFollowing = $authUser->isFollowing($followedUser);
+                                ->map(function ($user) use ($authUser) {
+                                    $isOwner = $authUser->id === $user->id;
+                                    $isFollowing = $authUser->isFollowing($user);
+                                    $isRequested = false;
+                                    $isRequested = FollowRequest::where('user_id',$authUser->id)
+                                                                ->where('requestable_type',User::class)
+                                                                ->where('requestable_id',$user->id)
+                                                                ->where('state','pending')
+                                                                ->exists();
                                     return [
-                                        'id' => $followedUser->id,
-                                        'name' => $followedUser->name,
-                                        'username' => $followedUser->username,
-                                        'avatar' => $followedUser->media ? url("storage/{$followedUser->media->path}") : null,
+                                        'id' => $user->id,
+                                        'name' => $user->name,
+                                        'username' => $user->username,
+                                        'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
                                         'is_following' => $isOwner ? 'owner' : $isFollowing,
+                                        'is_requested' => $isRequested
                                     ];
                                 });
 

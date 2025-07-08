@@ -6,8 +6,10 @@ use App\Models\Comment;
 use App\Models\Like;
 use App\Models\Post;
 use App\Models\Status;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Request as FollowRequest;
 
 class LikeController extends Controller
 {
@@ -99,6 +101,12 @@ class LikeController extends Controller
             $user = $like->user;
             $isOwner = $authUser->id === $user->id;
             $isFollowing = $authUser->isFollowing($user);
+            $isRequested = false;
+            $isRequested = FollowRequest::where('user_id',$authUser->id)
+                                        ->where('requestable_type',User::class)
+                                        ->where('requestable_id',$user->id)
+                                        ->where('state','pending')
+                                        ->exists();
 
             return [
                 'id' => $user->id,
@@ -106,6 +114,7 @@ class LikeController extends Controller
                 'username' => $user->username,
                 'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
                 'is_following' => $isOwner ? 'owner' : $isFollowing,
+                'is_requested' => $isRequested
             ];
         });
 
