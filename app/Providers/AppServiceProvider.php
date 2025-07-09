@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        config(['app.timezone' => 'Asia/Damascus']);
+        date_default_timezone_set('Asia/Damascus');
     }
 }

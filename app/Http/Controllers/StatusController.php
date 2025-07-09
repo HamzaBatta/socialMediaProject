@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Status;
 use App\Http\Requests\StoreStatusRequest;
 use App\Http\Requests\UpdateStatusRequest;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use App\Models\User;
@@ -71,15 +73,16 @@ class StatusController extends Controller
 
     public function store(Request $request)
     {
+
         $request->validate([
             'text' => 'nullable|string',
             'media' => 'nullable|file',
             'privacy'   => ['required', 'in:public,private'],
         ]);
         $status = Status::create([
-            'user_id' => Auth::id(), // Changed to use Auth facade
+            'user_id' => Auth::id(),
             'text' => $request->text,
-            'expiration_date' => now()->addDay(),
+            'expiration_date' =>Carbon::now()->addDay(),
             'privacy' => $request->privacy
         ]);
 

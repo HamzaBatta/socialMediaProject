@@ -11,7 +11,10 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 class Status extends Model
 {
     use HasFactory;
-    protected $fillable = ['user_id', 'text', 'expires_at', 'privacy'];
+    protected $casts = [
+        'expiration_date' => 'datetime',
+    ];
+    protected $fillable = ['user_id', 'text', 'expiration_date', 'privacy'];
 
     public function user(): BelongsTo
     {

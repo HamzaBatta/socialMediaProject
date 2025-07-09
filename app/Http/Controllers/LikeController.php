@@ -113,6 +113,7 @@ class LikeController extends Controller
                 'name' => $user->name,
                 'username' => $user->username,
                 'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
+                'is_private' => $user->is_private,
                 'is_following' => $isOwner ? 'owner' : $isFollowing,
                 'is_requested' => $isRequested
             ];
