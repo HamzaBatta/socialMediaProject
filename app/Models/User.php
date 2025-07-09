@@ -105,6 +105,10 @@ class User extends Authenticatable implements JWTSubject,MustVerifyEmail
                     ->withPivot('role')
                     ->withTimestamps();
     }
+
+    public function highlights():HasMany{
+        return $this->hasMany(Highlight::class);
+    }
     /**
      * createing the follow relationship between users
      * and there are many functions :

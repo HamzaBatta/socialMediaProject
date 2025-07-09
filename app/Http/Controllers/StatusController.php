@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Highlight;
 use App\Models\Status;
 use App\Http\Requests\StoreStatusRequest;
 use App\Http\Requests\UpdateStatusRequest;
@@ -32,7 +33,7 @@ class StatusController extends Controller
         }
 
         $statuses = Status::where('user_id', $owner->id)
-                          ->where('expiration_date', '>', now())
+                          ->where('expiration_date', '>', Carbon::now())
                           ->when(!$isOwner, function ($query) use ($owner, $isFollower) {
                               $query->where(function ($subQuery) use ($owner, $isFollower) {
                                   $subQuery->where('privacy', 'public');
@@ -142,5 +143,40 @@ class StatusController extends Controller
         $status->delete();
 
         return response()->json(['message' => 'Status deleted successfully']);
+    }
+    public function addToHighlight(Request $request)
+    {
+        $request->validate([
+            'highlight_id' => 'required|exists:highlights,id',
+            'status_id' => 'required|exists:statuses,id',
+        ]);
+
+        $user = Auth::user();
+
+        $highlight = Highlight::where('id', $request->highlight_id)
+                              ->where('user_id', $user->id)
+                              ->firstOrFail();
+
+        $status = Status::where('id', $request->status_id)
+                        ->where('user_id', $user->id)
+                        ->firstOrFail();
+
+        if ($highlight->statuses()->where('statuses.id', $status->id)->exists()) {
+            return response()->json(['message' => 'Status already in highlight.'], 200);
+        }
+
+        $highlight->statuses()->attach($status->id, [
+            'added_at' => Carbon::now(),
+        ]);
+
+        return response()->json(['message' => 'Status added to highlight.']);
+    }
+    public function archivedStatuses(Request $request){
+        $authUser = Auth::user();
+        $statuses = Status::where('user_id',$authUser->id)
+                                 ->where('expiration_date','<',Carbon::now())->get();
+        return  response()->json([
+            'statuses'=> $statuses
+        ]);
     }
 }

@@ -30,8 +30,16 @@ class Status extends Model
     {
         return $this->morphMany(Like::class, 'likeable');
     }
+
     public function isLikedBy($userId)
     {
         return $this->likes()->where('user_id', $userId)->exists();
+    }
+
+    public function highlights()
+    {
+        return $this->belongsToMany(Highlight::class, 'status_highlight')
+                    ->withPivot('added_at')
+                    ->withTimestamps();
     }
 }

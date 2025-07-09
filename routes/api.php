@@ -6,6 +6,7 @@ use App\Http\Controllers\BlockController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GroupController;
+use App\Http\Controllers\HighlightController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PostController;
@@ -40,6 +41,7 @@ Route::get('/comments', [CommentController::class, 'index']);  // pass post_id o
 Route::get('/comments/{id}', [CommentController::class, 'show']);
 
 //statuses
+Route::get('/statuses/archived-statuses',[StatusController::class,'archivedStatuses']);
 Route::get('/statuses', [StatusController::class, 'index']);
 Route::get('/statuses/{id}', [StatusController::class, 'show']);
 
@@ -71,8 +73,10 @@ Route::middleware('auth:api')->group(function () {
 
     //Statuses
     Route::post('/statuses',[StatusController::class,'store']);
+    Route::post('/statuses/add-to-highlight',[StatusController::class,'addToHighlight']);
     Route::post('/statuses/{id}', [StatusController::class, 'update']);
     Route::delete('/statuses/{id}', [StatusController::class, 'destroy']);
+
 
     //User
     Route::get('/user/check-username', [UserController::class, 'checkUsername']);
@@ -89,6 +93,12 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/saved-posts', [SavedPostController::class, 'index']);
     Route::post('/saved-posts/{id}', [SavedPostController::class, 'store']);
     Route::delete('/saved-posts/{id}', [SavedPostController::class, 'destroy']);
+
+    //Highlights
+    Route::get('/highlights', [HighlightController::class, 'index']);
+    Route::post('/highlights', [HighlightController::class, 'store']);
+    Route::get('highlights/{id}',[HighlightController::class,'show']);
+    Route::delete('/highlights/{id}', [HighlightController::class, 'destroy']);
 });
 
 Route::middleware('auth:api')->prefix('groups')->group(function () {
