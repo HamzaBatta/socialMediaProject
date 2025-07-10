@@ -55,7 +55,7 @@ class HighlightController extends Controller
             }
 
             if ($request->hasFile('cover')) {
-                $path = $request->file('cover')->store('media', 'public');
+                $path = $request->file('cover')->store('highlights_covers', 'public');
 
                 $highlight->media()->create([
                     'path' => $path,
@@ -74,7 +74,7 @@ class HighlightController extends Controller
                         ]);
                     } elseif ($media->type === 'video') {
                         $videoPath = storage_path("app/public/{$media->path}");
-                        $frameFileName = 'media/' . Str::random(40) . '.jpg';
+                        $frameFileName = 'highlights_covers/' . Str::random(40) . '.jpg';
                         $frameFullPath = storage_path("app/public/{$frameFileName}");
 
                         $ffmpeg = FFMpeg::create();
@@ -171,13 +171,15 @@ class HighlightController extends Controller
         $highlight = Highlight::with('media')->where('id',$request->highlight_id)
                               ->where('user_id',$authUser->id)->firstOrFail();
 
-        $path = $request->file('cover')->store('media', 'public');
+        $path = $request->file('cover')->store('highlights_covers', 'public');
 
         $highlight->media()->create([
             'path' => $path,
             'type' => 'image',
         ]);
-        $coverUrl = url("storage/{$highlight->media->path}");
+        $highlight->load('media');
+        $coverUrl = $highlight->media ? url("storage/{$highlight->media->path}") : null;
+
         return response()->json([
             'message' => 'cover set successfully',
             'highlight' => [
