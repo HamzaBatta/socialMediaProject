@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Mail\ChangeEmailEmails;
 use App\Mail\VerifyEmails;
 use App\Models\Group;
+use App\Models\Status;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -41,7 +43,8 @@ class UserController extends Controller
                               ->exists();
 
         $hasStatus = false;
-        if ($user->statuses->isNotEmpty()) {
+
+        if ($user->statuses()->where('expiration_date','>',Carbon::now())->exists()) {
             if ($isOwner || $isFollowing) {
                 $hasStatus = true;
             } elseif (!$user->is_private) {
