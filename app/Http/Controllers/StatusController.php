@@ -151,14 +151,14 @@ class StatusController extends Controller
             'status_id' => 'required|exists:statuses,id',
         ]);
 
-        $user = Auth::user();
+        $authUser = Auth::user();
 
         $highlight = Highlight::where('id', $request->highlight_id)
-                              ->where('user_id', $user->id)
+                              ->where('user_id', $authUser->id)
                               ->firstOrFail();
 
         $status = Status::where('id', $request->status_id)
-                        ->where('user_id', $user->id)
+                        ->where('user_id', $authUser->id)
                         ->firstOrFail();
 
         if ($highlight->statuses()->where('statuses.id', $status->id)->exists()) {

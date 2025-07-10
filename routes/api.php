@@ -95,6 +95,7 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('/saved-posts/{id}', [SavedPostController::class, 'destroy']);
 
     //Highlights
+    Route::post('/highlights/set-cover',[HighlightController::class,'setCover']);
     Route::get('/highlights', [HighlightController::class, 'index']);
     Route::post('/highlights', [HighlightController::class, 'store']);
     Route::get('highlights/{id}',[HighlightController::class,'show']);
