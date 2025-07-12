@@ -39,17 +39,34 @@ class RequestController extends Controller
      */
     public function show(Request $request)
     {
-        $userId = Auth::id();
-        $user = User::find($userId);
+        $authUser = Auth::user();
 
-        $pendingRequests = $user
-            ->requests()             
+
+        $pendingRequests = $authUser
+            ->requests()
             ->where('state', 'pending')
-            ->with('creator')        
+            ->with('creator.media')
             ->get();
 
-        return response()->json([   
-            'pending_requests' => $pendingRequests
+        return response()->json([
+            'pending_requests' => $pendingRequests->map(fn($request)=>[
+                'id' => $request->id,
+                'user_id' => $request->user_id,
+                'requestable_id' => $request->requestable_id,
+                'requestable_type' => $request->requestable_type,
+                'state' => $request->state,
+                'requested_at' => $request->requested_at,
+                'responsed_at' => $request->responsed_at,
+                'created_at' => $request->created_at,
+                'updated_at' => $request->updated_at,
+                'creator' =>[
+                    'id' => $request->creator->id,
+                    'name' => $request->creator->name,
+                    'username' => $request->creator->username,
+                    'avatar' => $request->creator->media ? url("storage/{$request->creator->media->path}") : null,
+                    'is_private' => $request->creator->is_private,
+                ]
+            ]),
         ]);
     }
 
@@ -58,7 +75,7 @@ class RequestController extends Controller
      */
     public function edit(Request $request)
     {
-        //accepting a user request : 
+        //accepting a user request :
         $currentUser = User::findOrFail(Auth::id());
         $targetUser = User::findOrFail($request->targetId);
 
