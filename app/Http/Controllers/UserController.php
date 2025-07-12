@@ -8,9 +8,12 @@ use App\Models\Group;
 use App\Models\Status;
 use App\Models\User;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -250,62 +253,132 @@ class UserController extends Controller
     {
         $user = Auth::user();
 
-        //delete user avatar
-        if ($user->media) {
-            Storage::disk('public')->delete($user->media->path);
-            $user->media()->delete();
+        if (!$user) {
+            Log::error('User deletion failed: No authenticated user');
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        //delete user's posts
-        foreach ($user->posts as $post) {
-            foreach ($post->media as $media) {
-                Storage::disk('public')->delete($media->path);
-                $media->delete();
-            }
-            $post->delete();
-        }
+        try {
+            DB::beginTransaction();
+            Log::info('Starting user deletion process', ['user_id' => $user->id]);
 
-        //delete user's stories
-        foreach ($user->stories as $story) {
-            foreach ($story->media as $media) {
-                Storage::disk('public')->delete($media->path);
-                $media->delete();
-            }
-            $story->delete();
-        }
-
-        //handle groups the user owns
-        $ownedGroups = Group::where('owner_id', $user->id)->get();
-
-        foreach ($ownedGroups as $group) {
-            $adminMember = $group->members()->where('role', 'admin')->first();
-
-            if ($adminMember) {
-                $group->update(['owner_id' => $adminMember->user_id]);
-                $adminMember->update(['role' => 'owner']);
-            } else {
-                //delete group avatar
-                if ($group->media) {
-                    Storage::disk('public')->delete($group->media->path);
-                    $group->media()->delete();
+            // Delete user avatar
+            if ($user->media) {
+                try {
+                    Storage::disk('public')->delete($user->media->path);
+                    $user->media()->delete();
+                    Log::info('User avatar deleted', ['user_id' => $user->id]);
+                } catch (Exception $e) {
+                    Log::error('Failed to delete user avatar', [
+                        'user_id' => $user->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
                 }
+            }
 
-                //delete group's posts
-                foreach ($group->posts as $post) {
+            // Delete user's posts
+            try {
+                $posts = $user->posts()->with('media')->get();
+                foreach ($posts as $post) {
                     foreach ($post->media as $media) {
                         Storage::disk('public')->delete($media->path);
                         $media->delete();
                     }
                     $post->delete();
                 }
-
-                $group->delete();
+                Log::info('User posts deleted', ['user_id' => $user->id, 'post_count' => $posts->count()]);
+            } catch (Exception $e) {
+                Log::error('Failed to delete user posts', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
-        }
 
-        $user->groups()->detach();
-        $user->delete();
-        return response()->json(['message' => 'User and related data deleted successfully']);
+            // Delete user's stories
+            try {
+                $stories = $user->stories()->with('media')->get();
+                foreach ($stories as $story) {
+                    foreach ($story->media as $media) {
+                        Storage::disk('public')->delete($media->path);
+                        $media->delete();
+                    }
+                    $story->delete();
+                }
+                Log::info('User stories deleted', ['user_id' => $user->id, 'story_count' => $stories->count()]);
+            } catch (Exception $e) {
+                Log::error('Failed to delete user stories', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+
+            // Handle groups the user owns
+            try {
+                $ownedGroups = Group::where('owner_id', $user->id)->with('members')->get();
+                foreach ($ownedGroups as $group) {
+                    $adminMember = $group->members()->where('role', 'admin')->first();
+
+                    if ($adminMember) {
+                        $group->update(['owner_id' => $adminMember->user_id]);
+                        $adminMember->update(['role' => 'owner']);
+                        Log::info('Group ownership transferred', [
+                            'group_id' => $group->id,
+                            'new_owner_id' => $adminMember->user_id
+                        ]);
+                    } else {
+                        if ($group->media) {
+                            Storage::disk('public')->delete($group->media->path);
+                            $group->media()->delete();
+                        }
+
+                        $groupPosts = $group->posts()->with('media')->get();
+                        foreach ($groupPosts as $post) {
+                            foreach ($post->media as $media) {
+                                Storage::disk('public')->delete($media->path);
+                                $media->delete();
+                            }
+                            $post->delete();
+                        }
+                        $group->delete();
+                        Log::info('Group deleted', ['group_id' => $group->id]);
+                    }
+                }
+            } catch (Exception $e) {
+                Log::error('Failed to handle owned groups', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+
+            // Detach user from groups and delete
+            try {
+                $user->groups()->detach();
+                $user->delete();
+                Log::info('User deleted successfully', ['user_id' => $user->id]);
+            } catch (Exception $e) {
+                Log::error('Failed to detach/delete user', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+
+            DB::commit();
+            return response()->json(['message' => 'User and related data deleted successfully']);
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('User deletion failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Server error'], 500);
+        }
     }
 
     public function followingWithStatus()
