@@ -29,12 +29,9 @@ Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
 // {====== Public Read-Only Routes ======}
 
 //posts
-
+Route::get('/posts/feed',[PostController::class,'feed']);
 Route::get('/posts/{id}', [PostController::class, 'show']);
 
-//media
-Route::get('/posts/{postId}/media', [MediaController::class, 'index']);
-Route::get('/posts/{postId}/media/{mediaId}', [MediaController::class, 'show']);
 
 //comments
 Route::get('/comments', [CommentController::class, 'index']);  // pass post_id or comment_id

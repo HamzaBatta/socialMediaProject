@@ -177,7 +177,7 @@ class PostController extends Controller
         $post = Post::where('user_id', Auth::id())->findOrFail($id);
 
         $request->validate([
-            'text' => 'nullable|string',
+            'text' => 'sometimes|required|string',
         ]);
 
         $post->update([
@@ -201,5 +201,60 @@ class PostController extends Controller
         $post->delete();
 
         return response()->json(['message' => 'Post deleted successfully']);
+    }
+
+    public function feed(Request $request)
+    {
+        $request->validate([
+            'page' => 'nullable|integer|min:1',
+        ]);
+
+        $authUser = Auth::user();
+        $page = $request->query('page', 1);
+        $perPage = 10;
+
+        $followingIds = $authUser->following()->pluck('id');
+
+        $query = Post::whereIn('user_id', $followingIds)
+                     ->with(['media', 'user.media'])
+                     ->withCount(['likes', 'comments'])
+                     ->latest();
+
+        $posts = $query->paginate($perPage, ['*'], 'page', $page);
+
+        $posts->getCollection()->transform(function ($post) use ($authUser) {
+            return [
+                'id' => $post->id,
+                'text' => $post->text,
+                'likes_count' => $post->likes_count,
+                'comments_count' => $post->comments_count,
+                'is_liked' => $post->isLikedBy($authUser->id),
+                'group_id' => $post->group_id,
+                'media' => $post->media->map(fn($media) => [
+                    'id' => $media->id,
+                    'type' => $media->type,
+                    'url' => url("storage/{$media->path}"),
+                ]),
+                'privacy' => $post->privacy,
+                'created_at' => $post->created_at,
+                'user' => [
+                    'id' => $post->user->id,
+                    'name' => $post->user->name,
+                    'avatar' => $post->user->media
+                        ? url("storage/{$post->user->media->path}")
+                        : null,
+                ],
+            ];
+        });
+
+        return response()->json([
+            'posts' => $posts->items(),
+            'pagination' => [
+                'current_page' => $posts->currentPage(),
+                'per_page' => $posts->perPage(),
+                'total' => $posts->total(),
+                'last_page' => $posts->lastPage(),
+            ],
+        ]);
     }
 }

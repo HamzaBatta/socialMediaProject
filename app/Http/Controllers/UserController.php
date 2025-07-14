@@ -215,7 +215,7 @@ class UserController extends Controller
         $code = mt_rand(1000, 9999);
 
         $user->verification_code = $code;
-        $user->verification_code_sent_at = now();
+        $user->verification_code_sent_at = Carbon::now();
         $user->save();
 
         Mail::to($user->email)->send(new ChangeemailEmails($code));
@@ -231,7 +231,7 @@ class UserController extends Controller
 
         $user = Auth::user();
 
-        if ($user->verification_code != $request->code || now()->diffInMinutes($user->verification_code_sent_at) > 60) {
+        if ($user->verification_code != $request->code || Carbon::now()->diffInMinutes($user->verification_code_sent_at) > 60) {
             return response()->json(['message' => 'Invalid or expired code'], 400);
         }
 
@@ -240,7 +240,7 @@ class UserController extends Controller
 
         $code = mt_rand(1000, 9999);
         $user->verification_code = $code;
-        $user->verification_code_sent_at = now();
+        $user->verification_code_sent_at = Carbon::now();
         $user->save();
 
         Mail::to($request->new_email)->send(new VerifyEmails($code));
@@ -386,7 +386,7 @@ class UserController extends Controller
         $user = Auth::user();
         $followingWithStatuses = $user->following()
                                       ->whereHas('statuses', function ($query) {
-                                          $query->where('expiration_date', '>', now());
+                                          $query->where('expiration_date', '>', Carbon::now());
                                       })
                                       ->with('media')
                                       ->get()
