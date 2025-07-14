@@ -173,10 +173,30 @@ class StatusController extends Controller
     }
     public function archivedStatuses(Request $request){
         $authUser = Auth::user();
-        $statuses = Status::where('user_id',$authUser->id)
+        $statuses = Status::with('user.media')->where('user_id',$authUser->id)
                                  ->where('expiration_date','<',Carbon::now())->get();
         return  response()->json([
-            'statuses'=> $statuses
+            'statuses'=> $statuses->map(function ($status){
+                return [
+                    'id' => $status->id,
+                    'test' => $status->text,
+                    'expiration_date' => $status->expiration_date,
+                    'privacy' => $status->expiration_date,
+                    'likes_count' => $status->likes_count,
+                    'media' => $status->media ? [
+                        'id' => $status->media->id,
+                        'type' => $status->media->type,
+                        'url' => url("storage/{$status->media->path}"),
+                    ] : null,
+                    'created_at' => $status->created_at,
+                    'user' => [
+                        'id' => $status->user->id,
+                        'name' => $status->user->name,
+                        'username' => $status->user->username,
+                        'avatar' => $status->user->media ? url("storage/{$status->user->media->path}") : null,
+                    ],
+                ];
+            })
         ]);
     }
 }
