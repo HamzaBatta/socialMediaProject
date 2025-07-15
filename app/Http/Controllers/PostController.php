@@ -122,6 +122,8 @@ class PostController extends Controller
                 ], 400);
             }
         }
+        $authUser = Auth::user();
+        $isFollowing = $authUser->isFollowing($post->user);
 
         return response()->json([
             'message' => 'Post created successfully',
@@ -138,6 +140,16 @@ class PostController extends Controller
                 }),
                 'privacy' =>$post->privacy,
                 'created_at' => $post->created_at,
+                'user' => [
+                    'id' => $post->user->id,
+                    'name' => $post->user->name,
+                    'username' => $post->user->username,
+                    'avatar' => $post->user->media
+                        ? url("storage/{$post->user->media->path}")
+                        : null,
+                    'is_following' => $isFollowing,
+                    'is_private' => $post->user->is_private
+                ],
             ],
         ], 201);
     }
