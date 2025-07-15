@@ -48,6 +48,7 @@ class PostController extends Controller
         $posts = $query->latest()->paginate($perPage, ['*'], 'page', $page);
 
         $posts->getCollection()->transform(function ($post) use ($authUser) {
+            $isFollowing = $authUser->isFollowing($post->user);
             return [
                 'id' => $post->id,
                 'text' => $post->text,
@@ -65,9 +66,12 @@ class PostController extends Controller
                 'user' => [
                     'id' => $post->user->id,
                     'name' => $post->user->name,
+                    'username' => $post->user->username,
                     'avatar' => $post->user->media
                         ? url("storage/{$post->user->media->path}")
                         : null,
+                    'is_following' => $isFollowing,
+                    'is_private' => $post->user->is_private
                 ],
             ];
         });
@@ -147,6 +151,7 @@ class PostController extends Controller
         if (!Gate::allows('view', $post)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+        $isFollowing = $authUser->isFollowing($post->user);
 
         return response()->json(['post'=>[
             'id' => $post->id,
@@ -165,9 +170,12 @@ class PostController extends Controller
             'user' => [
                 'id' => $post->user->id,
                 'name' => $post->user->name,
+                'username' => $post->user->username,
                 'avatar' => $post->user->media
                     ? url("storage/{$post->user->media->path}")
                     : null,
+                'is_following' => $isFollowing,
+                'is_private' => $post->user->is_private
             ],
         ]]);
     }
