@@ -197,15 +197,39 @@ class PostController extends Controller
         $post = Post::where('user_id', Auth::id())->findOrFail($id);
 
         $request->validate([
-            'text' => 'sometimes|required|string',
+            'text'    => 'nullable|string',
+            'privacy' => 'nullable|in:public,private',
+            'media'   => 'nullable|array',
+            'media.*' => 'file|mimes:jpeg,png,gif,mp4,mov|max:20480',
         ]);
 
         $post->update([
-            'text' => $request->text,
+            'text'    => $request->text ?? $post->text,
+            'privacy' => $request->privacy ?? $post->privacy,
         ]);
+
+        if ($request->hasFile('media')) {
+            foreach ($post->media as $media) {
+                if (Storage::disk('public')->exists($media->path)) {
+                    Storage::disk('public')->delete($media->path);
+                }
+                $media->delete();
+            }
+
+            foreach ($request->file('media') as $file) {
+                $path = $file->store('posts', 'public');
+                $type = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
+
+                $post->media()->create([
+                    'path' => $path,
+                    'type' => $type,
+                ]);
+            }
+        }
 
         return response()->json(['message' => 'Post updated successfully']);
     }
+
 
     public function destroy($id)
     {
