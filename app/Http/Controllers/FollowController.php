@@ -6,8 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Request as FollowRequest;    // your Eloquent model, aliased
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-
-
+use App\Services\EventPublisher;
 
 class FollowController extends Controller
 {
@@ -53,6 +52,13 @@ class FollowController extends Controller
                 // Dump the SQL error code & message:
                 return response()->json(['message' => 'there is a database error'], 400);
             }
+
+        app(EventPublisher::class)->publishEvent('UserFollowed',[
+                'id' => $currentUser->id,
+                'target' => $targetUser->id,
+        ]);
+
+
             return response()->json(['message' => 'User followed successfully.'], 200);
         }
 
@@ -71,6 +77,11 @@ class FollowController extends Controller
             $currentUser->following()->detach($targetUser->id);
             return response()->json(['message' => 'User unfollowed successfully.']);
         }
+        app(EventPublisher::class)->publishEvent('UserUnFollow',[
+                'id' => $currentUser->id,
+                'target' => $targetUser->id,
+        ]);
+
 
         return response()->json(['message' => 'You are not following this user.'], 400);
     }
@@ -184,6 +195,12 @@ class FollowController extends Controller
 
             $requestingUser = User::findOrFail($followRequest->user_id);
             $requestingUser->following()->attach($currentUser->id);
+
+            app(EventPublisher::class)->publishEvent('UserFollowed',[
+                    'id' => $currentUser->id,
+                    'target' => $targetUser->id,
+            ]);
+
 
             return response()->json(['message' => 'Follow request approved.'], 200);
         }

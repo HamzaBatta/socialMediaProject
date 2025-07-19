@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use App\Services\EventPublisher;
 class BlockController extends Controller
 {
     public function block(Request $request)
@@ -29,6 +30,12 @@ class BlockController extends Controller
         $currentUser->following()->detach($targetUser->id);
 
         $currentUser->blockedUsers()->attach($targetUser->id);
+
+        app(EventPublisher::class)->publishEvent('BlockedUser',[
+                'id' => $currentUser->id,
+                'target' => $targetUser->email,
+        ]);
+
 
         return response()->json(['message' => 'User blocked successfully.'], 200);
     }
@@ -62,6 +69,11 @@ class BlockController extends Controller
                 'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
             ];
         });
+        app(EventPublisher::class)->publishEvent('UnblockUser',[
+                'id' => $currentUser->id,
+                'target' => $targetUser->email,
+        ]);
+
 
         return response()->json(['blocked_users' => $blocked]);
     }

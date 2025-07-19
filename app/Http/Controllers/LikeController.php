@@ -11,7 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Request as FollowRequest;
-
+use App\Services\EventPublisher;
 class LikeController extends Controller
 {
     public function toggle(Request $request)
@@ -58,6 +58,14 @@ class LikeController extends Controller
 
         if ($like) {
             $like->delete();
+
+
+        app(EventPublisher::class)->publishEvent('Unlike',[
+                'id' => $user->id,
+                'likeable_type' => $likeableType,
+                'likeable_id'=> $likeableId
+        ]);
+
             return response()->json(['message' => 'Unliked successfully'], 200);
         } else {
             Like::create([
@@ -65,6 +73,14 @@ class LikeController extends Controller
                 'likeable_type' => $likeableType,
                 'likeable_id' => $likeableId,
             ]);
+
+        app(EventPublisher::class)->publishEvent('Like',[
+                'id' => $user->id,
+                'likeable_type' => $likeableType,
+                'likeable_id'=> $likeableId
+        ]);
+
+
             return response()->json(['message' => 'Liked successfully'], 201);
         }
     }

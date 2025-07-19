@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
-
+use App\Services\EventPublisher;
 class GroupController extends Controller
 {
 
@@ -40,6 +40,12 @@ class GroupController extends Controller
         }
 
         $owner = User::findOrFail($group->owner_id);
+
+
+        app(EventPublisher::class)->publishEvent('GroupCreated',$validated);
+
+
+
         return response()->json([
             'message' =>'Group created successfully',
             'group' =>[
@@ -148,6 +154,7 @@ class GroupController extends Controller
             $group->media()->create(['path' => $path]);
         }
 
+        app(EventPublisher::class)->publishEvent('GroupUpdated',$validated);
         return response()->json(['group' => [
             'id'=>$group->id,
             'name'=>$group->name,
@@ -179,6 +186,10 @@ class GroupController extends Controller
         }
 
         $group->delete();
+
+        app(EventPublisher::class)->publishEvent('GroupDeleted',[
+            'id'=> $group_id
+        ]);
         return response()->json(['message' => 'Group deleted successfully.'], 204);
     }
 
@@ -210,6 +221,12 @@ class GroupController extends Controller
             }
 
             $group->members()->attach($user->id);
+
+            app(EventPublisher::class)->publishEvent('JoinedGroup',[
+                'id'=> $group_id,
+                'user'=>$user->id
+            ]);
+
             return response()->json(['message' => 'You have joined the group.'], 200);
         }
 
@@ -227,6 +244,13 @@ class GroupController extends Controller
         if ($group->members()->where('user_id', $user->id)->exists()) {
 
             $group->members()->detach($user->id);
+
+            app(EventPublisher::class)->publishEvent('LeaveGroup',[
+                'id'=> $group_id,
+                'user'=>$user->id
+            ]);
+
+
             return response()->json(['message' => 'You have left the group.'], 200);
         }
 
@@ -296,6 +320,12 @@ class GroupController extends Controller
 
         if ($validated['state'] === 'approved') {
             $group->members()->attach($joinRequest->user_id, ['role' => 'member']);
+
+            app(EventPublisher::class)->publishEvent('JoinedGroup',[
+                'id'=> $groupId,
+                'user'=>$joinRequest->user_id
+            ]);
+
             return response()->json(['message' => 'Request approved and user added to group.']);
         }
 

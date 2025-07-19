@@ -254,6 +254,31 @@ class PostController extends Controller
             }
         }
 
+        app(EventPublisher::class)->publishEvent('PostUpdated',[
+                'id' => $post->id,
+                'text' => $post->text,
+                'group_id' => $post->group_id,
+                'media' => $post->media->map(function ($media) {
+                    return [
+                        'id' => $media->id,
+                        'type' => $media->type,
+                        'url' => url("storage/{$media->path}"),
+                    ];
+                }),
+                'privacy' =>$post->privacy,
+                'created_at' => $post->created_at,
+                'user' => [
+                    'id' => $post->user->id,
+                    'name' => $post->user->name,
+                    'username' => $post->user->username,
+                    'avatar' => $post->user->media
+                        ? url("storage/{$post->user->media->path}")
+                        : null,
+                    'is_following' => $isFollowing,
+                    'is_private' => $post->user->is_private
+                ]
+        ]);
+
         return response()->json(['message' => 'Post updated successfully']);
     }
 
@@ -268,8 +293,11 @@ class PostController extends Controller
             }
             $media->delete();
         }
+        app(EventPublisher::class)->publishEvent('PostDeleted',[ 'id'=> $id ]);
 
         $post->delete();
+
+
 
         return response()->json(['message' => 'Post deleted successfully']);
     }
