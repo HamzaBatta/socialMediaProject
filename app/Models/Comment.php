@@ -10,16 +10,16 @@ class Comment extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'post_id', 'reply_comment_id', 'text'];
+    protected $fillable = ['user_id', 'commentable_type', 'commentable_id', 'text'];
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    public function post()
+    public function commentable()
     {
-        return $this->belongsTo(Post::class);
+        return $this->morphTo();
     }
 
     public function parent()
@@ -29,7 +29,7 @@ class Comment extends Model
 
     public function replies()
     {
-        return $this->hasMany(Comment::class, 'reply_comment_id');
+        return $this->morphMany(Comment::class, 'commentable');
     }
 
     public function likes(): MorphMany

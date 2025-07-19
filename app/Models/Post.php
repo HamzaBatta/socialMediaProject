@@ -37,9 +37,9 @@ class Post extends Model
         return $this->morphMany(Like::class, 'likeable');
     }
 
-    public function comments(): HasMany
+    public function comments(): MorphMany
     {
-        return $this->hasMany(Comment::class)->whereNull('reply_comment_id');
+        return $this->morphMany(Comment::class, 'commentable');
     }
 
     public function isLikedBy($userId)

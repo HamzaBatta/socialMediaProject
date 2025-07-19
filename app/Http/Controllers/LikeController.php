@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Ad;
 use App\Models\Comment;
 use App\Models\Like;
 use App\Models\Post;
@@ -19,12 +20,14 @@ class LikeController extends Controller
             'post_id' => 'nullable|exists:posts,id',
             'comment_id' => 'nullable|exists:comments,id',
             'status_id' => 'nullable|exists:statuses,id',
+            'ad_id' => 'nullable',
         ]);
 
         $provided = array_filter([
             'post_id' => $request->post_id,
             'comment_id' => $request->comment_id,
             'status_id' => $request->status_id,
+            'ad_id' => $request->ad_id
         ]);
 
         if (count($provided) !== 1) {
@@ -40,9 +43,12 @@ class LikeController extends Controller
         } elseif ($request->comment_id) {
             $likeableType = Comment::class;
             $likeableId = $request->comment_id;
-        } else {
+        } elseif ($request->status_id) {
             $likeableType = Status::class;
             $likeableId = $request->status_id;
+        } elseif ($request->ad_id) {
+            $likeableType = Ad::class;
+            $likeableId = $request->ad_id;
         }
 
         $like = Like::where('user_id', $user->id)
@@ -68,18 +74,22 @@ class LikeController extends Controller
         $request->validate([
             'post_id' => 'nullable|exists:posts,id',
             'status_id' => 'nullable|exists:statuses,id',
+            'ad_id' => 'nullable|'
         ]);
 
-        if (!$request->post_id && !$request->status_id) {
-            return response()->json(['message' => 'post_id or status_id is required'], 422);
+
+
+        if($request->ad_id){
+            $likeableType = Ad::class;
+            $likeableId = $request->ad_id;
+        }else if($request->post->id){
+            $likeableType = Post::class;
+            $likeableId = $request->post->id;
+        }else{
+            $likeableType = Status::class;
+            $likeableId = $request->status->id;
         }
 
-        if ($request->post_id && $request->status_id) {
-            return response()->json(['message' => 'Only one of post_id or status_id should be provided'], 422);
-        }
-
-        $likeableType = $request->post_id ? Post::class : Status::class;
-        $likeableId = $request->post_id ?? $request->status_id;
 
         $authUser = Auth::user();
 

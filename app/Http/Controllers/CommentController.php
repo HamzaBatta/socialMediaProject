@@ -12,6 +12,7 @@ class CommentController extends Controller
     {
         $request->validate([
             'post_id' => 'nullable|exists:posts,id',
+            'ad_id' => 'nullable|integer',
             'comment_id' => 'nullable|exists:comments,id',
             'page' => 'nullable|integer|min:1',
         ]);
@@ -25,20 +26,23 @@ class CommentController extends Controller
                         ->withCount(['likes', 'replies']);
 
         if ($request->filled('post_id')) {
-            $query->where('post_id', $request->post_id)
-                  ->whereNull('reply_comment_id');
+            $query->where('commentable_type', 'Post')
+                  ->where('commentable_id', $request->post_id);
+        } elseif ($request->filled('ad_id')) {
+            $query->where('commentable_type', 'Ad')
+                  ->where('commentable_id', $request->ad_id);
         } elseif ($request->filled('comment_id')) {
-            $query->where('reply_comment_id', $request->comment_id);
+            $query->where('commentable_type', 'Comment')
+                  ->where('commentable_id', $request->comment_id);
         } else {
-            return response()->json(['message' => 'post_id or comment_id is required'], 422);
+            return response()->json(['message' => 'post_id, ad_id or comment_id is required'], 422);
         }
 
-        // Exclude comments where the comment author has blocked the auth user
-        // or the auth user has blocked the comment author
+        // Block logic
         $query->whereDoesntHave('user.blockedUsers', function ($q) use ($authUser) {
-            $q->where('blocked_id', $authUser->id); // They blocked me
+            $q->where('blocked_id', $authUser->id);
         })->whereDoesntHave('user.blockedByUsers', function ($q) use ($authUser) {
-            $q->where('blocker_id', $authUser->id); // I blocked them
+            $q->where('blocker_id', $authUser->id);
         });
 
         $comments = $query->paginate($perPage, ['*'], 'page', $page);
@@ -69,22 +73,20 @@ class CommentController extends Controller
         ]);
     }
 
+
+
     public function store(Request $request)
     {
         $request->validate([
             'text' => 'required|string|max:1000',
-            'post_id' => 'nullable|exists:posts,id',
-            'reply_comment_id' => 'nullable|exists:comments,id',
+            'commentable_type' => 'required|in:Post,Ad,Comment',
+                'commentable_id' => 'required|integer',
         ]);
-
-        if (!$request->post_id && !$request->reply_comment_id) {
-            return response()->json(['message' => 'You must provide either post_id or reply_comment_id'], 422);
-        }
 
         $comment = Comment::create([
             'text' => $request->text,
-            'post_id' => $request->post_id,
-            'reply_comment_id' => $request->reply_comment_id,
+            'commentable_type' => $request->commentable_type,
+            'commentable_id' => $request->commentable_id,
             'user_id' => auth()->id(),
         ]);
 
@@ -105,6 +107,7 @@ class CommentController extends Controller
             ],
         ], 201);
     }
+
 
     public function show($id)
     {
