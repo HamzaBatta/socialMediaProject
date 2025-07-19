@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Services\EventPublisher;
+
 
 class PostController extends Controller
 {
@@ -125,10 +127,35 @@ class PostController extends Controller
         $authUser = Auth::user();
         $isFollowing = $authUser->isFollowing($post->user);
 
+        app(EventPublisher::class)->publishEvent('PostCreated',[
+                'id' => $post->id,
+                'text' => $post->text,
+                'group_id' => $post->group_id,
+                'media' => $post->media->map(function ($media) {
+                    return [
+                        'id' => $media->id,
+                        'type' => $media->type,
+                        'url' => url("storage/{$media->path}"),
+                    ];
+                }),
+                'privacy' =>$post->privacy,
+                'created_at' => $post->created_at,
+                'user' => [
+                    'id' => $post->user->id,
+                    'name' => $post->user->name,
+                    'username' => $post->user->username,
+                    'avatar' => $post->user->media
+                        ? url("storage/{$post->user->media->path}")
+                        : null,
+                    'is_following' => $isFollowing,
+                    'is_private' => $post->user->is_private
+                ]
+        ]);
+        echo "sent a message to the PostCreated using rabbitmq";
         return response()->json([
             'message' => 'Post created successfully',
             'post' => [
-                'id' => $post->id,
+                y'id' => $post->id,
                 'text' => $post->text,
                 'group_id' => $post->group_id,
                 'media' => $post->media->map(function ($media) {

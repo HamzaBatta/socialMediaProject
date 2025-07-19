@@ -21,8 +21,10 @@ use Symfony\Component\Routing\Route;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use App\Models\Request as FollowRequest;
 
-class UserController extends Controller
-{
+use App\Services\EventPublisher;
+
+
+class UserController extends Controller {
 
     public function show($id)
     {
@@ -116,81 +118,97 @@ class UserController extends Controller
         return response()->json(['valid' => true, 'message' => 'Username is available']);
     }
 
-    public function updateProfile(Request $request)
-    {
-        $user = Auth::user();
 
-        $request->validate([
-            'username' => [
-                'nullable',
-                'string',
-                'min:3',
-                'max:20',
-                'regex:/^[a-zA-Z0-9_]+$/',
-                Rule::unique('users')->ignore($user->id),
-            ],
-            'name' => 'nullable|string|max:255',
-            'bio' => 'nullable|string|max:255',
-            'is_private' => 'nullable|boolean',
-            'avatar' => 'nullable|image|max:2048',
-            'personal_info' => 'nullable|array',
-        ]);
+public function updateProfile(Request $request)
+{
+    $user = Auth::user();
 
-        if ($request->filled('username')) {
-            $user->username = $request->username;
-        }
+    $request->validate([
+        'username' => [
+            'nullable',
+            'string',
+            'min:3',
+            'max:20',
+            'regex:/^[a-zA-Z0-9_]+$/',
+            Rule::unique('users')->ignore($user->id),
+        ],
+        'name' => 'nullable|string|max:255',
+        'bio' => 'nullable|string|max:255',
+        'is_private' => 'nullable|boolean',
+        'avatar' => 'nullable|image|max:2048',
+        'personal_info' => 'nullable|array',
+    ]);
 
-        if ($request->filled('name')) {
-            $user->name = $request->name;
-        }
+    $updatedData = [];
 
-        if ($request->filled('bio')) {
-            $user->bio = $request->bio;
-        }
-
-        if ($request->has('is_private')) {
-            $user->is_private = $request->is_private;
-        }
-
-        if ($request->hasFile('avatar')) {
-            if ($user->media) {
-                Storage::disk('public')->delete($user->media->path);
-                $user->media()->delete();
-            }
-
-            $path = $request->file('avatar')->store('avatars', 'public');
-
-            $user->media()->create([
-                'path' => $path,
-                'type' => 'image',
-            ]);
-        }
-
-        if($request->filled('personal_info')){
-            $user->personal_info = $request->personal_info;
-        }
-
-        $user->save();
-
-        $user->load('media');
-
-
-        $token = JWTAuth::fromUser($user);
-
-        return response()->json([
-            'message' => 'Profile updated successfully',
-            'token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'username' => $user->username,
-                'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
-                'is_private' => $user->is_private,
-                'bio' => $user->bio,
-                'personal_info' => $user->personal_info,
-            ],
-        ]);
+    if ($request->filled('username')) {
+        $user->username = $request->username;
+        $updatedData['username'] = $request->username;
     }
+
+    if ($request->filled('name')) {
+        $user->name = $request->name;
+        $updatedData['name'] = $request->name;
+    }
+
+    if ($request->filled('bio')) {
+        $user->bio = $request->bio;
+        $updatedData['bio'] = $request->bio;
+    }
+
+    if ($request->has('is_private')) {
+        $user->is_private = $request->is_private;
+        $updatedData['is_private'] = $request->is_private;
+    }
+
+    if ($request->filled('personal_info')) {
+        $user->personal_info = $request->personal_info;
+        $updatedData['personal_info'] = $request->personal_info;
+    }
+
+    if ($request->hasFile('avatar')) {
+        if ($user->media) {
+            Storage::disk('public')->delete($user->media->path);
+            $user->media()->delete();
+        }
+
+        $path = $request->file('avatar')->store('avatars', 'public');
+
+        $user->media()->create([
+            'path' => $path,
+            'type' => 'image',
+        ]);
+
+        $updatedData['avatar'] = url("storage/{$path}");
+    }
+
+    $user->save();
+    $user->load('media');
+
+    // Append required static user details
+    $updatedData['id'] = $user->id;
+    $updatedData['email'] = $user->email;
+
+    // Fire event with all updated data
+    app(EventPublisher::class)->publishEvent('UserUpdated', $updatedData);
+
+    $token = JWTAuth::fromUser($user);
+
+    return response()->json([
+        'message' => 'Profile updated successfully',
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
+            'is_private' => $user->is_private,
+            'bio' => $user->bio,
+            'personal_info' => $user->personal_info,
+        ],
+    ]);
+}
+
 
     public function changePassword(Request $request){
         $request->validate([
@@ -369,6 +387,10 @@ class UserController extends Controller
             }
 
             DB::commit();
+
+            app(EventPublisher::class)->publishEvent('UserDeleted', [
+                'id'=> $user->id
+            ] );
             return response()->json(['message' => 'User and related data deleted successfully']);
         } catch (Exception $e) {
             DB::rollBack();

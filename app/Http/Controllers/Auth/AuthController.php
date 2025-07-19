@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Tymon\JWTAuth\Facades\JWTAuth;
-
+use App\Services\EventPublisher;
 class AuthController extends Controller
 {
     public function register(Request $request)
@@ -22,10 +22,9 @@ class AuthController extends Controller
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:8'
         ]);
-
         $user = User::create([
             'email' => $validated['email'],
-            'password' => bcrypt($validated['password']),
+            'password' => bcrypt($validated['password'])
         ]);
 
         $code = mt_rand(1000, 9999);
@@ -35,8 +34,12 @@ class AuthController extends Controller
 
         $user->savedPost()->create();
 
-        Mail::to($user->email)->send(new VerifyEmails($code));
+        app(EventPublisher::class)->publishEvent('UserCreated',[
+                'id' => $user->id,
+                'email' => $user->email,
+        ]);
 
+        Mail::to($user->email)->send(new VerifyEmails($code));
 
         return response()->json([
             'message' => 'User registered successfully',
@@ -58,8 +61,7 @@ class AuthController extends Controller
         if(!$user->email_verified_at){
             return response()->json(['message'=>'Email Not Verified'],400);
         }
-
-        return response()->json([
+       return response()->json([
             'message' => 'Login successful',
             'token' => $token,
             'user' => [
