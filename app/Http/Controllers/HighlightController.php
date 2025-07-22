@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class HighlightController extends Controller
@@ -181,7 +182,8 @@ class HighlightController extends Controller
         return response()->json(['message' => 'Highlight deleted.']);
     }
 
-    public function setCover (Request $request){
+    public function setCover(Request $request)
+    {
         $request->validate([
             'highlight_id' => 'required|exists:highlights,id',
             'cover' => 'required|image|max:5120'
@@ -189,8 +191,15 @@ class HighlightController extends Controller
 
         $authUser = Auth::user();
 
-        $highlight = Highlight::with('media')->where('id',$request->highlight_id)
-                              ->where('user_id',$authUser->id)->firstOrFail();
+        $highlight = Highlight::where('id', $request->highlight_id)
+                              ->where('user_id', $authUser->id)
+                              ->firstOrFail();
+
+
+        if ($highlight->media) {
+            Storage::disk('public')->delete($highlight->media->path);
+            $highlight->media()->delete();
+        }
 
         $path = $request->file('cover')->store('highlights_covers', 'public');
 
@@ -198,11 +207,13 @@ class HighlightController extends Controller
             'path' => $path,
             'type' => 'image',
         ]);
-        $highlight->load('media');
-        $coverUrl = $highlight->media ? url("storage/{$highlight->media->path}") : null;
+
+        $highlight->update(['cover_path' => $path]);
+
+        $coverUrl = url("storage/{$path}");
 
         return response()->json([
-            'message' => 'cover set successfully',
+            'message' => 'Cover set successfully',
             'highlight' => [
                 'id' => $highlight->id,
                 'text' => $highlight->text,
