@@ -197,10 +197,12 @@ class PostController extends Controller
         $post = Post::where('user_id', Auth::id())->findOrFail($id);
 
         $request->validate([
-            'text'    => 'nullable|string',
-            'privacy' => 'nullable|in:public,private',
-            'media'   => 'nullable|array',
-            'media.*' => 'file|mimes:jpeg,png,gif,mp4,mov|max:20480',
+            'text'          => 'nullable|string',
+            'privacy'       => 'nullable|in:public,private',
+            'media'         => 'nullable|array',
+            'media.*'       => 'file|mimes:jpeg,png,gif,mp4,mov|max:20480',
+            'removedMedia'  => 'nullable|array',
+            'removedMedia.*'=> 'exists:media,id',
         ]);
 
         $post->update([
@@ -208,14 +210,16 @@ class PostController extends Controller
             'privacy' => $request->privacy ?? $post->privacy,
         ]);
 
-        if ($request->hasFile('media')) {
-            foreach ($post->media as $media) {
+        if ($request->filled('removedMedia')) {
+            foreach ($post->media()->whereIn('id', $request->removedMedia)->get() as $media) {
                 if (Storage::disk('public')->exists($media->path)) {
                     Storage::disk('public')->delete($media->path);
                 }
                 $media->delete();
             }
+        }
 
+        if ($request->hasFile('media')) {
             foreach ($request->file('media') as $file) {
                 $path = $file->store('posts', 'public');
                 $type = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
@@ -229,6 +233,7 @@ class PostController extends Controller
 
         return response()->json(['message' => 'Post updated successfully']);
     }
+
 
 
     public function destroy($id)

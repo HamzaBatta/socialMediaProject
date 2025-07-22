@@ -19,12 +19,30 @@ class HighlightController extends Controller
     {
         $user = Auth::user();
 
-        $highlights = $user->highlights()->with(['media', 'statuses'])->get()->map(function ($highlight) {
+        $highlights = $user->highlights()->with(['media', 'statuses.media'])->get()->map(function ($highlight) {
+            $cover = null;
+            $textAsCover = null;
+
+            if ($highlight->media) {
+                $cover = url("storage/{$highlight->media->path}");
+            } else {
+                $firstStatus = $highlight->statuses->first();
+
+                if ($firstStatus) {
+                    if ($firstStatus->media) {
+                        $cover = url("storage/{$firstStatus->media->path}");
+                    } elseif (!$firstStatus->media && $firstStatus->text) {
+                        $textAsCover = $firstStatus->text;
+                    }
+                }
+            }
+
             return [
                 'id' => $highlight->id,
                 'text' => $highlight->text,
-                'cover' => $highlight->media ? url("storage/{$highlight->media->path}") : null,
+                'cover' =>  $cover,
                 'statuses_count' => $highlight->statuses->count(),
+                'text_as_cover' => $textAsCover ? :null
             ];
         });
 
@@ -115,23 +133,26 @@ class HighlightController extends Controller
                               ->firstOrFail();
 
         $coverUrl = null;
+        $textAsCover = null;
 
         if ($highlight->media) {
             $coverUrl = url("storage/{$highlight->media->path}");
         } else {
-            $firstImageStatus = $highlight->statuses->firstWhere(fn($status) =>
-                $status->media && $status->media->type === 'image'
-            );
+            $firstStatus = $highlight->statuses->first();
 
-            if ($firstImageStatus && $firstImageStatus->media) {
-                $coverUrl = url("storage/{$firstImageStatus->media->path}");
+            if ($firstStatus) {
+                if (!$firstStatus->media && $firstStatus->text) {
+                    $textAsCover = $firstStatus->text;
+                }
             }
         }
+
         return response()->json([
             'highlight' => [
                 'id' => $highlight->id,
                 'text' => $highlight->text,
                 'cover' => $coverUrl,
+                'text_as_cover' =>$textAsCover,
                 'statuses' => $highlight->statuses->map(function ($status)use($highlight) {
                     $addedAt = StatusHighlights::where('highlight_id',$highlight->id)->where('status_id',$status->id)->value('added_at');
 
