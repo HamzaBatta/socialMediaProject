@@ -155,7 +155,7 @@ class PostController extends Controller
         return response()->json([
             'message' => 'Post created successfully',
             'post' => [
-                y'id' => $post->id,
+                'id' => $post->id,
                 'text' => $post->text,
                 'group_id' => $post->group_id,
                 'media' => $post->media->map(function ($media) {
@@ -224,10 +224,12 @@ class PostController extends Controller
         $post = Post::where('user_id', Auth::id())->findOrFail($id);
 
         $request->validate([
-            'text'    => 'nullable|string',
-            'privacy' => 'nullable|in:public,private',
-            'media'   => 'nullable|array',
-            'media.*' => 'file|mimes:jpeg,png,gif,mp4,mov|max:20480',
+            'text'          => 'nullable|string',
+            'privacy'       => 'nullable|in:public,private',
+            'media'         => 'nullable|array',
+            'media.*'       => 'file|mimes:jpeg,png,gif,mp4,mov|max:20480',
+            'removedMedia'  => 'nullable|array',
+            'removedMedia.*'=> 'exists:media,id',
         ]);
 
         $post->update([
@@ -235,14 +237,16 @@ class PostController extends Controller
             'privacy' => $request->privacy ?? $post->privacy,
         ]);
 
-        if ($request->hasFile('media')) {
-            foreach ($post->media as $media) {
+        if ($request->filled('removedMedia')) {
+            foreach ($post->media()->whereIn('id', $request->removedMedia)->get() as $media) {
                 if (Storage::disk('public')->exists($media->path)) {
                     Storage::disk('public')->delete($media->path);
                 }
                 $media->delete();
             }
+        }
 
+        if ($request->hasFile('media')) {
             foreach ($request->file('media') as $file) {
                 $path = $file->store('posts', 'public');
                 $type = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
@@ -252,31 +256,30 @@ class PostController extends Controller
                     'type' => $type,
                 ]);
             }
+            $post->save();
         }
-
         app(EventPublisher::class)->publishEvent('PostUpdated',[
-                'id' => $post->id,
-                'text' => $post->text,
-                'group_id' => $post->group_id,
-                'media' => $post->media->map(function ($media) {
-                    return [
-                        'id' => $media->id,
-                        'type' => $media->type,
-                        'url' => url("storage/{$media->path}"),
-                    ];
-                }),
-                'privacy' =>$post->privacy,
-                'created_at' => $post->created_at,
-                'user' => [
-                    'id' => $post->user->id,
-                    'name' => $post->user->name,
-                    'username' => $post->user->username,
-                    'avatar' => $post->user->media
-                        ? url("storage/{$post->user->media->path}")
-                        : null,
-                    'is_following' => $isFollowing,
-                    'is_private' => $post->user->is_private
-                ]
+            'id' => $post->id,
+            'text' => $post->text,
+            'group_id' => $post->group_id,
+            'media' => $post->media->map(function ($media) {
+                return [
+                    'id' => $media->id,
+                    'type' => $media->type,
+                    'url' => url("storage/{$media->path}"),
+                ];
+            }),
+            'privacy' =>$post->privacy,
+            'created_at' => $post->created_at,
+            'user' => [
+                'id' => $post->user->id,
+                'name' => $post->user->name,
+                'username' => $post->user->username,
+                'avatar' => $post->user->media
+                    ? url("storage/{$post->user->media->path}")
+                    : null,
+                'is_private' => $post->user->is_private
+            ]
         ]);
 
         return response()->json(['message' => 'Post updated successfully']);

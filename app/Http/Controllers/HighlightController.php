@@ -15,14 +15,13 @@ use Illuminate\Support\Str;
 
 class HighlightController extends Controller
 {
-
-
-public function index()
+    public function index()
     {
         $user = Auth::user();
 
         $highlights = $user->highlights()->with(['media', 'statuses.media'])->get()->map(function ($highlight) {
             $cover = null;
+            $textAsCover = null;
 
             if ($highlight->media) {
                 $cover = url("storage/{$highlight->media->path}");
@@ -33,7 +32,7 @@ public function index()
                     if ($firstStatus->media) {
                         $cover = url("storage/{$firstStatus->media->path}");
                     } elseif (!$firstStatus->media && $firstStatus->text) {
-                        $cover = $firstStatus->text;
+                        $textAsCover = $firstStatus->text;
                     }
                 }
             }
@@ -41,15 +40,14 @@ public function index()
             return [
                 'id' => $highlight->id,
                 'text' => $highlight->text,
-                'cover' => $cover,
+                'cover' =>  $cover,
                 'statuses_count' => $highlight->statuses->count(),
+                'text_as_cover' => $textAsCover
             ];
         });
 
         return response()->json(['highlights' => $highlights]);
     }
-
-
 
     public function store(Request $request)
     {
@@ -135,6 +133,7 @@ public function index()
                               ->firstOrFail();
 
         $coverUrl = null;
+        $textAsCover = null;
 
         if ($highlight->media) {
             $coverUrl = url("storage/{$highlight->media->path}");
@@ -143,7 +142,7 @@ public function index()
 
             if ($firstStatus) {
                 if (!$firstStatus->media && $firstStatus->text) {
-                    $coverUrl = $firstStatus->text;
+                    $textAsCover = $firstStatus->text;
                 }
             }
         }
@@ -153,6 +152,7 @@ public function index()
                 'id' => $highlight->id,
                 'text' => $highlight->text,
                 'cover' => $coverUrl,
+                'text_as_cover' =>$textAsCover,
                 'statuses' => $highlight->statuses->map(function ($status)use($highlight) {
                     $addedAt = StatusHighlights::where('highlight_id',$highlight->id)->where('status_id',$status->id)->value('added_at');
 
@@ -168,12 +168,6 @@ public function index()
             ]
         ]);
     }
-
-
-
-
-
-
 
     public function destroy($id)
     {
