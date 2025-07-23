@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\Highlight;
 use App\Models\Status;
 use App\Models\StatusHighlights;
+use App\Models\User;
 use Carbon\Carbon;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
@@ -16,9 +17,12 @@ use Illuminate\Support\Str;
 
 class HighlightController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user = Auth::user();
+        $authUser = Auth::user();
+        $userId = $request->query('user_id');
+
+        $user = $userId ? User::find($userId) : $authUser;
 
         $highlights = $user->highlights()->with(['media', 'statuses.media'])->get()->map(function ($highlight) {
             $cover = null;
@@ -121,16 +125,13 @@ class HighlightController extends Controller
         }
     }
 
-    public function show($id)
+    public function show(Request $request)
     {
-        $user = Auth::user();
-
         $highlight = Highlight::with([
             'statuses.media',
             'media'
         ])
-                              ->where('id', $id)
-                              ->where('user_id', $user->id)
+                              ->where('id', $request->id)
                               ->firstOrFail();
 
         $coverUrl = null;

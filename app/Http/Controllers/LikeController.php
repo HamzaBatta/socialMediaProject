@@ -90,7 +90,7 @@ class LikeController extends Controller
         $request->validate([
             'post_id' => 'nullable|exists:posts,id',
             'status_id' => 'nullable|exists:statuses,id',
-            'ad_id' => 'nullable|'
+            'ad_id' => 'nullable'
         ]);
 
 
@@ -100,10 +100,10 @@ class LikeController extends Controller
             $likeableId = $request->ad_id;
         }else if($request->post->id){
             $likeableType = Post::class;
-            $likeableId = $request->post->id;
+            $likeableId = $request->post_id;
         }else{
             $likeableType = Status::class;
-            $likeableId = $request->status->id;
+            $likeableId = $request->status_id;
         }
 
 
@@ -118,9 +118,7 @@ class LikeController extends Controller
         $likes = Like::with('user.media')
                      ->where('likeable_type', $likeableType)
                      ->where('likeable_id', $likeableId)
-                     ->whereHas('user', function ($query) use ($excludedIds) {
-                         $query->whereNotIn('id', $excludedIds);
-                     })
+                     ->whereHas('user', fn($query) => $query->whereNotIn('id', $excludedIds))
                      ->get();
 
         $users = $likes->map(function ($like) use ($authUser) {
