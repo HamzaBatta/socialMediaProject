@@ -199,7 +199,6 @@ class FollowController extends Controller
             app(EventPublisher::class)->publishEvent('UserFollowed',[
                     'id' => $currentUser->id,
                     'target' => $requestingUser->id,
-                    //'state' => $state
             ]);
 
 

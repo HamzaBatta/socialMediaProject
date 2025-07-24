@@ -33,9 +33,8 @@ class BlockController extends Controller
 
         app(EventPublisher::class)->publishEvent('BlockedUser',[
                 'id' => $currentUser->id,
-                'target' => $targetUser->email,
+                'target' => $targetUser->id,
         ]);
-
 
         return response()->json(['message' => 'User blocked successfully.'], 200);
     }
@@ -55,6 +54,11 @@ class BlockController extends Controller
 
         $currentUser->blockedUsers()->detach($targetUser->id);
 
+        app(EventPublisher::class)->publishEvent('UnblockUser',[
+            'id' => $currentUser->id,
+            'target' => $targetUser->id,
+        ]);
+
         return response()->json(['message' => 'User unblocked successfully.'], 200);
     }
 
@@ -69,11 +73,6 @@ class BlockController extends Controller
                 'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
             ];
         });
-        app(EventPublisher::class)->publishEvent('UnblockUser',[
-                'id' => $currentUser->id,
-                'target' => $targetUser->email,
-        ]);
-
 
         return response()->json(['blocked_users' => $blocked]);
     }

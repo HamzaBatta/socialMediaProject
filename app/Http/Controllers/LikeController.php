@@ -90,31 +90,24 @@ class LikeController extends Controller
         $request->validate([
             'post_id' => 'nullable|exists:posts,id',
             'status_id' => 'nullable|exists:statuses,id',
-            'ad_id' => 'nullable'
+            'ad_id' => 'nullable',
         ]);
 
-
-
-        if($request->ad_id){
-            $likeableType = Ad::class;
-            $likeableId = $request->ad_id;
-        }else if($request->post->id){
-            $likeableType = Post::class;
-            $likeableId = $request->post_id;
-        }else{
-            $likeableType = Status::class;
-            $likeableId = $request->status_id;
+        if (!$request->post_id && !$request->status_id && !$request->ad_id) {
+            return response()->json(['error' => 'At least one ID is required'], 422);
         }
 
+        $likeableType = match (true) {
+            $request->ad_id => Ad::class,
+            $request->post_id => Post::class,
+            default => Status::class,
+        };
+        $likeableId = $request->ad_id ?? $request->post_id ?? $request->status_id;
 
         $authUser = Auth::user();
+        $excludedIds = $authUser->blockedUsers()->pluck('users.id')
+                                ->merge($authUser->blockedByUsers()->pluck('users.id'));
 
-        // Get blocked and blocking user IDs
-        $blockedUserIds = $authUser->blockedUsers()->pluck('users.id');
-        $blockedByUserIds = $authUser->blockedByUsers()->pluck('users.id');
-        $excludedIds = $blockedUserIds->merge($blockedByUserIds);
-
-        // Fetch likes excluding blocked users
         $likes = Like::with('user.media')
                      ->where('likeable_type', $likeableType)
                      ->where('likeable_id', $likeableId)
@@ -125,11 +118,10 @@ class LikeController extends Controller
             $user = $like->user;
             $isOwner = $authUser->id === $user->id;
             $isFollowing = $authUser->isFollowing($user);
-            $isRequested = false;
-            $isRequested = FollowRequest::where('user_id',$authUser->id)
-                                        ->where('requestable_type',User::class)
-                                        ->where('requestable_id',$user->id)
-                                        ->where('state','pending')
+            $isRequested = FollowRequest::where('user_id', $authUser->id)
+                                        ->where('requestable_type', User::class)
+                                        ->where('requestable_id', $user->id)
+                                        ->where('state', 'pending')
                                         ->exists();
 
             return [
@@ -139,7 +131,7 @@ class LikeController extends Controller
                 'avatar' => $user->media ? url("storage/{$user->media->path}") : null,
                 'is_private' => $user->is_private,
                 'is_following' => $isOwner ? 'owner' : $isFollowing,
-                'is_requested' => $isRequested
+                'is_requested' => $isRequested,
             ];
         });
 
