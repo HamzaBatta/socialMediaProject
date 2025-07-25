@@ -47,6 +47,7 @@ class GroupController extends Controller
                 'id'=>$group->id,
                 'name'=>$group->name,
                 'privacy'=>$group->privacy,
+                'bio' => $group->bio,
                 'owner'=>[
                     'id'=>$owner->id,
                     'name'=>$owner->name,
@@ -54,7 +55,6 @@ class GroupController extends Controller
                     'avatar' => $owner->media ? url("storage/{$owner->media->path}") : null,
                 ],
                 'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
-                'bio' => $group->bio,
             ]
         ]);
     }
@@ -62,7 +62,9 @@ class GroupController extends Controller
 
     public function show(Request $request, $group_id)
     {
-        $group = Group::with('media')->findOrFail($group_id);
+        $group = Group::with('media')
+                      ->withCount('members')
+                      ->findOrFail($group_id);
         $user = $request->user();
 
         // Default: Not a member
@@ -78,6 +80,8 @@ class GroupController extends Controller
                 $isMember = $group->members()->where('user_id', $user->id)->exists();
             }
         }
+        $owner = User::where('id',$group->owner_id)->with('media')->firstOrFail();
+
 
         // If group is public or user is a member
         if ($group->privacy === 'public' || $isMember) {
@@ -87,9 +91,15 @@ class GroupController extends Controller
                     'id'=>$group->id,
                     'name'=>$group->name,
                     'privacy'=>$group->privacy,
-                    'owner_id'=>$group->owner_id,
                     'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
-                    'bio' => $group->bio
+                    'bio' => $group->bio,
+                    'members_count' => $group->members_count,
+                    'owner' => [
+                        'id' => $owner->id,
+                        'name' => $owner->name,
+                        'username' => $owner->username,
+                        'avatar' => $owner->media ? url("storage/{$owner->media->path}") : null,
+                    ]
                 ],
             ]);
         }
@@ -100,8 +110,15 @@ class GroupController extends Controller
                 'id'=>$group->id,
                 'name'=>$group->name,
                 'privacy'=>$group->privacy,
-                'owner_id'=>$group->owner_id,
-                'avatar' => $group->media ? url("storage/{$group->media->path}") : null
+                'members_count' => $group->members_count,
+                'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
+                'owner' => [
+                    'id' => $owner->id,
+                    'name' => $owner->name,
+                    'username' => $owner->username,
+                    'avatar' => $owner->media ? url("storage/{$owner->media->path}") : null,
+                ]
+
             ],
             'message' => 'This group is private.',
         ], 403);
