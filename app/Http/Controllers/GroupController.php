@@ -79,23 +79,8 @@ class GroupController extends Controller
             }
         }
 
-        // If group is public or user is a member → load posts
+        // If group is public or user is a member
         if ($group->privacy === 'public' || $isMember) {
-
-            $posts = $group->posts()->with('media')->get()->map(function ($post) {
-                return [
-                    'id'         => $post->id,
-                    'content'    => $post->content,
-                    'privacy'    => $post->privacy,
-                    'created_at' => $post->created_at,
-                    'media'      => $post->media->map(fn($media) => [
-                        'id'  => $media->id,
-                        'type'=> $media->type,
-                        'url' => url("storage/{$media->path}"),
-                    ]),
-                ];
-            });
-
 
             return response()->json([
                 'group' => [
@@ -106,7 +91,6 @@ class GroupController extends Controller
                     'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
                     'bio' => $group->bio
                 ],
-                'posts' => $posts,
             ]);
         }
 
@@ -117,8 +101,7 @@ class GroupController extends Controller
                 'name'=>$group->name,
                 'privacy'=>$group->privacy,
                 'owner_id'=>$group->owner_id,
-                'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
-                'bio' => $group->bio
+                'avatar' => $group->media ? url("storage/{$group->media->path}") : null
             ],
             'message' => 'This group is private.',
         ], 403);

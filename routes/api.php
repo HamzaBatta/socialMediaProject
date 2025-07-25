@@ -29,6 +29,7 @@ Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
 // {====== Public Read-Only Routes ======}
 
 //posts
+Route::get('posts/group-posts',[PostController::class,'groupPosts']);
 Route::get('/posts/feed',[PostController::class,'feed']);
 Route::get('/posts/{id}', [PostController::class, 'show']);
 
