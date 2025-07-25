@@ -335,6 +335,7 @@ class GroupController extends Controller
     {
         $groups = Group::where('owner_id', Auth::id())
                        ->with('media')
+                       ->withCount('members')
                        ->latest()
                        ->paginate(10);
 
@@ -345,6 +346,7 @@ class GroupController extends Controller
                     'name'    => $group->name,
                     'privacy' => $group->privacy,
                     'bio'     => $group->bio,
+                    'members_count' => $group->members_count,
                     'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
                 ];
             }),
