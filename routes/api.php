@@ -100,29 +100,21 @@ Route::middleware('auth:api')->group(function () {
 });
 
 Route::middleware('auth:api')->prefix('groups')->group(function () {
-    // List all groups
-    Route::get('/', [GroupController::class, 'index']);
 
-    // Create a new group
+
+    Route::get('/my-owned-groups',[GroupController::class,'myOwnedGroups']);
+    Route::get('/my-groups',[GroupController::class,'myGroups']);
+    Route::get('/explore-groups',[GroupController::class,'exploreGroups']);
     Route::post('/', [GroupController::class, 'store']);
-
-    // Show a single group
     Route::get('/{group}', [GroupController::class, 'show']);
-
-    // Update a group (full or partial)
     Route::post( '/{group}', [GroupController::class, 'update']);
-
-    // Delete a group
     Route::delete('/{group}', [GroupController::class, 'destroy']);
-
-    // Join a group
     Route::post('/{group_id}/join', [GroupController::class, 'join']);
-
-    // Leave a group
     Route::post('/{group_id}/leave', [GroupController::class, 'leave']);
     Route::get('/{group}/members', [GroupController::class, 'members']);
     Route::get('/{group}/requests', [GroupController::class, 'pendingRequests']);
     Route::post('/{group}/requests/respond', [GroupController::class, 'respondToRequest']);
+
 });
 
 Route::middleware('auth:api')->prefix('users')->group(function () {

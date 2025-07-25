@@ -13,11 +13,6 @@ use App\Services\EventPublisher;
 class GroupController extends Controller
 {
 
-    public function index()
-    {
-        //
-    }
-
 
     public function store(Request $request)
     {
@@ -109,6 +104,7 @@ class GroupController extends Controller
                     'privacy'=>$group->privacy,
                     'owner_id'=>$group->owner_id,
                     'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
+                    'bio' => $group->bio
                 ],
                 'posts' => $posts,
             ]);
@@ -122,6 +118,7 @@ class GroupController extends Controller
                 'privacy'=>$group->privacy,
                 'owner_id'=>$group->owner_id,
                 'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
+                'bio' => $group->bio
             ],
             'message' => 'This group is private.',
         ], 403);
@@ -140,6 +137,7 @@ class GroupController extends Controller
             'name'    => 'sometimes|required|string|max:255',
             'privacy' => 'sometimes|required|in:public,private',
             'avatar'   => 'nullable|image|max:2048',
+            'bio' => 'sometimes|required|string|max:255'
         ]);
 
         $group->update($validated);
@@ -161,6 +159,7 @@ class GroupController extends Controller
             'privacy'=>$group->privacy,
             'owner_id'=>$group->owner_id,
             'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
+            'bio' => $group->bio
         ]]);
     }
     public function destroy(Request $request, $group_id)
@@ -188,7 +187,7 @@ class GroupController extends Controller
         $group->delete();
 
         app(EventPublisher::class)->publishEvent('GroupDeleted',[
-            'id'=> $group_id
+            'id'=> $group->id
         ]);
         return response()->json(['message' => 'Group deleted successfully.'], 204);
     }
@@ -223,7 +222,7 @@ class GroupController extends Controller
             $group->members()->attach($user->id);
 
             app(EventPublisher::class)->publishEvent('JoinedGroup',[
-                'id'=> $group_id,
+                'id'=> $group->id,
                 'user'=>$user->id
             ]);
 
@@ -246,7 +245,7 @@ class GroupController extends Controller
             $group->members()->detach($user->id);
 
             app(EventPublisher::class)->publishEvent('LeaveGroup',[
-                'id'=> $group_id,
+                'id'=> $group->id,
                 'user'=>$user->id
             ]);
 
@@ -322,7 +321,7 @@ class GroupController extends Controller
             $group->members()->attach($joinRequest->user_id, ['role' => 'member']);
 
             app(EventPublisher::class)->publishEvent('JoinedGroup',[
-                'id'=> $groupId,
+                'id'=> $group->id,
                 'user'=>$joinRequest->user_id
             ]);
 
@@ -331,5 +330,91 @@ class GroupController extends Controller
 
         return response()->json(['message' => 'Request rejected.']);
     }
+
+    public function myOwnedGroups(Request $request)
+    {
+        $groups = Group::where('owner_id', Auth::id())
+                       ->with('media')
+                       ->latest()
+                       ->paginate(10);
+
+        return response()->json([
+            'groups' => $groups->through(function ($group) {
+                return [
+                    'id'      => $group->id,
+                    'name'    => $group->name,
+                    'privacy' => $group->privacy,
+                    'bio'     => $group->bio,
+                    'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
+                ];
+            }),
+            'pagination' => [
+                'current_page' => $groups->currentPage(),
+                'last_page'    => $groups->lastPage(),
+                'per_page'     => $groups->perPage(),
+                'total'        => $groups->total(),
+            ]
+        ]);
+    }
+    public function myGroups(Request $request)
+    {
+        $user = Auth::user();
+
+        $groups = $user->groups()
+                       ->with('media')
+                       ->latest()
+                       ->paginate(10);
+
+        return response()->json([
+            'groups' => $groups->through(function ($group) use ($user) {
+                return [
+                    'id'      => $group->id,
+                    'name'    => $group->name,
+                    'privacy' => $group->privacy,
+                    'bio'     => $group->bio,
+                    'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
+                    'role'    => $group->pivot->role,
+                ];
+            }),
+            'pagination' => [
+                'current_page' => $groups->currentPage(),
+                'last_page'    => $groups->lastPage(),
+                'per_page'     => $groups->perPage(),
+                'total'        => $groups->total(),
+            ]
+        ]);
+    }
+
+        public function exploreGroups(Request $request)
+    {
+        $authUser = Auth::user();
+
+        $groups = Group::whereDoesntHave('members', function ($query) use ($authUser) {
+            $query->where('user_id', $authUser->id);
+        })
+                       ->where('owner_id', '!=', $authUser->id)
+                       ->with('media')
+                       ->latest()
+                       ->paginate(10);
+
+        return response()->json([
+            'groups' => $groups->through(function ($group) {
+                return [
+                    'id'      => $group->id,
+                    'name'    => $group->name,
+                    'privacy' => $group->privacy,
+                    'bio'     => $group->bio,
+                    'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
+                ];
+            }),
+            'meta' => [
+                'current_page' => $groups->currentPage(),
+                'last_page'    => $groups->lastPage(),
+                'per_page'     => $groups->perPage(),
+                'total'        => $groups->total(),
+            ]
+        ]);
+    }
+
 
 }
