@@ -147,12 +147,12 @@ class GroupController extends Controller
                 Storage::disk('public')->delete($group->media->path);
                 $group->media()->delete();
             }
-
-            $path = $request->file('media')->store('group_media', 'public');
+            $path = $request->file('avatar')->store('group_avatars', 'public');
             $group->media()->create(['path' => $path]);
         }
 
         app(EventPublisher::class)->publishEvent('GroupUpdated',$validated);
+
         return response()->json(['group' => [
             'id'=>$group->id,
             'name'=>$group->name,
@@ -333,7 +333,8 @@ class GroupController extends Controller
 
     public function myOwnedGroups(Request $request)
     {
-        $groups = Group::where('owner_id', Auth::id())
+        $authUser = Auth::user();
+        $groups = $authUser->groups()->where('owner_id', $authUser->id)
                        ->with('media')
                        ->withCount('members')
                        ->latest()
@@ -360,15 +361,16 @@ class GroupController extends Controller
     }
     public function myGroups(Request $request)
     {
-        $user = Auth::user();
+        $authUser = Auth::user();
 
-        $groups = $user->groups()
+        $groups = $authUser->groups()
+                       ->whereNot('owner_id',$authUser->id)
                        ->with('media')
                        ->latest()
                        ->paginate(10);
 
         return response()->json([
-            'groups' => $groups->through(function ($group) use ($user) {
+            'groups' => $groups->through(function ($group) {
                 return [
                     'id'      => $group->id,
                     'name'    => $group->name,
