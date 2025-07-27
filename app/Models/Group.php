@@ -39,4 +39,25 @@ class Group extends Model
     {
         return $this->morphMany(Request::class, 'requestable');
     }
+
+    public function isMember($user_id){
+        if($this->owner_id == $user_id){
+            return true;
+        }
+        else if($this->members()->where('user_id',$user_id)->exists()){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    public function joinStatus($isMember,$isRequested){
+        if($isMember){
+            return "joined";
+        }else if($isRequested){
+            return "pending";
+        }else{
+            return "not_joined";
+        }
+    }
 }

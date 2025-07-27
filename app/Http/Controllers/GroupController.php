@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Services\EventPublisher;
+use App\Models\Request as FollowRequest;
 class GroupController extends Controller
 {
 
@@ -67,20 +68,14 @@ class GroupController extends Controller
                       ->findOrFail($group_id);
         $user = $request->user();
 
-        // Default: Not a member
-        $isMember = false;
+        $isMember = $group->isMember($user->id);
 
-        // Check if user is authenticated
-        if ($user) {
-            // Owner is always a member
-            if ($group->owner_id == $user->id) {
-                $isMember = true;
-            } else {
-                // Check if user is an accepted member
-                $isMember = $group->members()->where('user_id', $user->id)->exists();
-            }
-        }
         $owner = User::where('id',$group->owner_id)->with('media')->firstOrFail();
+
+        $isRequested = FollowRequest::isRequested($group->requests(),$user->id,Group::class,$group->id);
+
+        $joinStatus = $group->joinStatus($isMember,$isRequested);
+
 
 
         // If group is public or user is a member
@@ -94,6 +89,7 @@ class GroupController extends Controller
                     'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
                     'bio' => $group->bio,
                     'members_count' => $group->members_count,
+                    'join_status' => $joinStatus,
                     'owner' => [
                         'id' => $owner->id,
                         'name' => $owner->name,
@@ -111,6 +107,7 @@ class GroupController extends Controller
                 'name'=>$group->name,
                 'privacy'=>$group->privacy,
                 'members_count' => $group->members_count,
+                'join_status' => $joinStatus,
                 'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
                 'owner' => [
                     'id' => $owner->id,
@@ -199,7 +196,7 @@ class GroupController extends Controller
         $userId = Auth::id();
         $user = User::find($userId);
 
-        if (! $group->members()->where('user_id', $user->id)->exists()) {
+        if (! $group->isMember($user->id)) {
             if($group->privacy === 'private'){
                 $existingRequest = $group->requests()
                                             ->where('user_id', $user->id)
@@ -240,7 +237,7 @@ class GroupController extends Controller
         $userId = Auth::id();
         $user = User::find($userId);
 
-        if ($group->members()->where('user_id', $user->id)->exists()) {
+        if ($group->isMember($user->id)) {
 
             $group->members()->detach($user->id);
 
@@ -391,27 +388,37 @@ class GroupController extends Controller
 
         public function exploreGroups(Request $request)
     {
-        $authUser = Auth::user();
+        $user_id = Auth::id();
 
-        $groups = Group::whereDoesntHave('members', function ($query) use ($authUser) {
-            $query->where('user_id', $authUser->id);
+        $groups = Group::whereDoesntHave('members', function ($query) use ($user_id) {
+            $query->where('user_id',$user_id);
         })
-                       ->where('owner_id', '!=', $authUser->id)
+                       ->where('owner_id', '!=', $user_id)
                        ->with('media')
                        ->latest()
                        ->paginate(10);
 
+
+
         return response()->json([
-            'groups' => $groups->through(function ($group) {
+            'groups' => $groups->through(function ($group) use($user_id){
+
+                $isMember = $group->isMember($user_id);
+
+                $isRequested = FollowRequest::isRequested($group->requests(),$user_id,Group::class,$group->id);
+
+                $joinStatus = $group->joinStatus($isMember,$isRequested);
+
                 return [
                     'id'      => $group->id,
                     'name'    => $group->name,
                     'privacy' => $group->privacy,
                     'bio'     => $group->bio,
+                    'join_status' => $joinStatus,
                     'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
                 ];
             }),
-            'meta' => [
+            'pagination' => [
                 'current_page' => $groups->currentPage(),
                 'last_page'    => $groups->lastPage(),
                 'per_page'     => $groups->perPage(),

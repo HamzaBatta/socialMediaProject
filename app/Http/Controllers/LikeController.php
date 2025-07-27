@@ -118,11 +118,8 @@ class LikeController extends Controller
             $user = $like->user;
             $isOwner = $authUser->id === $user->id;
             $isFollowing = $authUser->isFollowing($user);
-            $isRequested = FollowRequest::where('user_id', $authUser->id)
-                                        ->where('requestable_type', User::class)
-                                        ->where('requestable_id', $user->id)
-                                        ->where('state', 'pending')
-                                        ->exists();
+
+            $isRequested = FollowRequest::isRequested($authUser->requests(),$authUser->id,User::class,$user->id);
 
             return [
                 'id' => $user->id,

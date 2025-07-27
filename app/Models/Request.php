@@ -35,4 +35,17 @@ class Request extends Model
         return $this->morphTo();
     }
 
+    public static function isRequested($requests,$user_id,$requestable_type,$requestable_id){
+        if($requests
+            ->where('user_id',$user_id)
+            ->where('requestable_type',$requestable_type)
+            ->where('requestable_id',$requestable_id)
+            ->where('state','pending')
+            ->exists()){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
 }

@@ -39,13 +39,7 @@ class UserController extends Controller {
         $isFollowing = $authUser->isFollowing($user);
         $hasBlocked = $authUser->hasBlocked($user);
 
-        $isRequested = false;
-
-        $isRequested = FollowRequest::where('user_id',$authUser->id)
-                              ->where('requestable_type',User::class)
-                              ->where('requestable_id',$user->id)
-                              ->where('state','pending')
-                              ->exists();
+        $isRequested = FollowRequest::isRequested($authUser->requests(),$authUser->id,User::class,$user->id);
 
         $hasStatus = false;
 

@@ -106,12 +106,8 @@ class FollowController extends Controller
                                 ->map(function ($user) use ($authUser) {
                                     $isOwner = $authUser->id === $user->id;
                                     $isFollowing = $authUser->isFollowing($user);
-                                    $isRequested = false;
-                                    $isRequested = FollowRequest::where('user_id',$authUser->id)
-                                                                ->where('requestable_type',User::class)
-                                                                ->where('requestable_id',$user->id)
-                                                                ->where('state','pending')
-                                                                ->exists();
+
+                                    $isRequested = FollowRequest::isRequested($authUser->requests(),$authUser->id,User::class,$user->id);
                                     return [
                                         'id' => $user->id,
                                         'name' => $user->name,
@@ -144,12 +140,7 @@ class FollowController extends Controller
                                 ->map(function ($user) use ($authUser) {
                                     $isOwner = $authUser->id === $user->id;
                                     $isFollowing = $authUser->isFollowing($user);
-                                    $isRequested = false;
-                                    $isRequested = FollowRequest::where('user_id',$authUser->id)
-                                                                ->where('requestable_type',User::class)
-                                                                ->where('requestable_id',$user->id)
-                                                                ->where('state','pending')
-                                                                ->exists();
+                                    $isRequested = FollowRequest::isRequested($authUser->requests(),$authUser->id,User::class,$user->id);
                                     return [
                                         'id' => $user->id,
                                         'name' => $user->name,
