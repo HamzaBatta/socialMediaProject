@@ -179,7 +179,7 @@ class StatusController extends Controller
             'statuses'=> $statuses->map(function ($status){
                 return [
                     'id' => $status->id,
-                    'test' => $status->text,
+                    'text' => $status->text,
                     'expiration_date' => $status->expiration_date,
                     'privacy' => $status->expiration_date,
                     'likes_count' => $status->likes_count,
