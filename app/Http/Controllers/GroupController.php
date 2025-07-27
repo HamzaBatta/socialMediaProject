@@ -118,7 +118,7 @@ class GroupController extends Controller
 
             ],
             'message' => 'This group is private.',
-        ], 403);
+        ], 200);
     }
 
 
@@ -338,12 +338,16 @@ class GroupController extends Controller
                        ->paginate(10);
 
         return response()->json([
-            'groups' => $groups->through(function ($group) {
+            'groups' => $groups->through(function ($group) use($authUser) {
+                $isMember = $group->isMember($authUser->id);
+                $isRequested = FollowRequest::isRequested($group->requests(),$authUser->id,Group::class,$group->id);
+                $joinStatus = $group->joinStatus($isMember,$isRequested);
                 return [
                     'id'      => $group->id,
                     'name'    => $group->name,
                     'privacy' => $group->privacy,
                     'bio'     => $group->bio,
+                    'join_status' => $joinStatus,
                     'members_count' => $group->members_count,
                     'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
                 ];
@@ -367,12 +371,16 @@ class GroupController extends Controller
                        ->paginate(10);
 
         return response()->json([
-            'groups' => $groups->through(function ($group) {
+            'groups' => $groups->through(function ($group) use($authUser) {
+                $isMember = $group->isMember($authUser->id);
+                $isRequested = FollowRequest::isRequested($group->requests(),$authUser->id,Group::class,$group->id);
+                $joinStatus = $group->joinStatus($isMember,$isRequested);
                 return [
                     'id'      => $group->id,
                     'name'    => $group->name,
                     'privacy' => $group->privacy,
                     'bio'     => $group->bio,
+                    'join_status' => $joinStatus,
                     'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
                     'role'    => $group->pivot->role,
                 ];
