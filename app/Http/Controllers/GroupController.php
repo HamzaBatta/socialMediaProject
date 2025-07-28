@@ -303,11 +303,13 @@ class GroupController extends Controller
                           ->map(function ($request) {
                               return [
                                   'id'       => $request->id,
-                                  'user_id'  => $request->creator->id,
-                                  'name'     => $request->creator->name,
-                                  'username' => $request->creator->username,
-                                  'avatar'    => $request->creator->media ? url("storage/{$request->creator->media->path}") : null,
                                   'requested_at' => $request->requested_at,
+                                  'creator' => [
+                                      'user_id'  => $request->creator->id,
+                                      'name'     => $request->creator->name,
+                                      'username' => $request->creator->username,
+                                      'avatar'    => $request->creator->media ? url("storage/{$request->creator->media->path}") : null,
+                                  ],
                               ];
                           });
 
@@ -506,24 +508,26 @@ class GroupController extends Controller
             'role'    => 'required|in:admin,member',
         ]);
 
+        $user_id = $request->user_id;
+
         $group = Group::findOrFail($groupId);
 
         if ($group->owner_id !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if ($validated['user_id'] == $group->owner_id) {
+        if ($user_id == $group->owner_id) {
             return response()->json(['message' => 'Cannot change the role of the owner'], 422);
         }
 
-        $isMember = $group->members()->where('user_id', $validated['user_id'])->exists();
+        $isMember = $group->isMember($user_id);
 
-        if (! $isMember) {
+        if (!$isMember) {
             return response()->json(['message' => 'User is not a member of the group'], 404);
         }
 
-        $group->members()->updateExistingPivot($validated['user_id'], [
-            'role' => $validated['role']
+        $group->members()->updateExistingPivot($user_id, [
+            'role' => $request->role
         ]);
 
         return response()->json(['message' => 'Member role updated successfully']);
