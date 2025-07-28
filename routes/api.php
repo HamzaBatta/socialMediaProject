@@ -102,7 +102,8 @@ Route::middleware('auth:api')->group(function () {
 
 Route::middleware('auth:api')->prefix('groups')->group(function () {
 
-
+    Route::post('/{group_id}/role',[GroupController::class,'changeRole']);
+    Route::get('/all-requests',[GroupController::class,'pendingAllRequests']);
     Route::get('/my-owned-groups',[GroupController::class,'myOwnedGroups']);
     Route::get('/my-groups',[GroupController::class,'myGroups']);
     Route::get('/explore-groups',[GroupController::class,'exploreGroups']);
@@ -115,7 +116,6 @@ Route::middleware('auth:api')->prefix('groups')->group(function () {
     Route::get('/{group}/members', [GroupController::class, 'members']);
     Route::get('/{group}/requests', [GroupController::class, 'pendingRequests']);
     Route::post('/{group}/requests/respond', [GroupController::class, 'respondToRequest']);
-
 });
 
 Route::middleware('auth:api')->prefix('users')->group(function () {

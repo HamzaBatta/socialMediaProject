@@ -7,6 +7,7 @@ use App\Http\Requests\StoreGroupRequest;
 use App\Http\Requests\UpdateGroupRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Services\EventPublisher;
@@ -255,15 +256,23 @@ class GroupController extends Controller
 
     public function members($groupId)
     {
+        $authUser = Auth::user();
+
         $group = Group::findOrFail($groupId);
 
-        $members = $group->members()->with(['media'])->get()->map(function ($user) {
+        $members = $group->members()->with(['media'])->get()->map(function ($user) use ($authUser) {
+            $isOwner = $authUser->id === $user->id;
+            $isFollowing = $authUser->isFollowing($user);
+            $isRequested = FollowRequest::isRequested($authUser->requests(),$authUser->id,User::class,$user->id);
             return [
                 'id'       => $user->id,
                 'name'     => $user->name,
                 'username' => $user->username,
                 'avatar'    => $user->media ? url("storage/{$user->media->path}") : null,
                 'role'     => $user->pivot->role,
+                'is_private' => $user->is_private,
+                'is_following' => $isOwner ? 'owner' : $isFollowing,
+                'is_requested' => $isRequested,
             ];
         });
 
@@ -274,7 +283,16 @@ class GroupController extends Controller
     {
         $group = Group::findOrFail($groupId);
 
-        if ($group->owner_id !== Auth::id()) {
+        $authUserId = Auth::id();
+
+        $isOwner = $group->owner_id === $authUserId;
+
+        $isAdmin = $group->members()
+                         ->where('user_id', $authUserId)
+                         ->wherePivot('role', 'admin')
+                         ->exists();
+
+        if (!$isOwner && !$isAdmin) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -305,8 +323,16 @@ class GroupController extends Controller
 
         $group = Group::findOrFail($groupId);
 
-        // Only the group owner can respond to requests (can extend this to admins later)
-        if ($group->owner_id !== Auth::id()) {
+        $authUserId = Auth::id();
+
+        $isOwner = $group->owner_id === $authUserId;
+
+        $isAdmin = $group->members()
+                         ->where('user_id', $authUserId)
+                         ->wherePivot('role', 'admin')
+                         ->exists();
+
+        if (!$isOwner && !$isAdmin) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -350,6 +376,7 @@ class GroupController extends Controller
                     'join_status' => $joinStatus,
                     'members_count' => $group->members_count,
                     'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
+                    'owner_id' => $group->owner_id,
                 ];
             }),
             'pagination' => [
@@ -383,6 +410,7 @@ class GroupController extends Controller
                     'join_status' => $joinStatus,
                     'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
                     'role'    => $group->pivot->role,
+                    'owner_id' => $group->owner_id,
                 ];
             }),
             'pagination' => [
@@ -424,6 +452,7 @@ class GroupController extends Controller
                     'bio'     => $group->bio,
                     'join_status' => $joinStatus,
                     'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
+                    'owner_id' => $group->owner_id,
                 ];
             }),
             'pagination' => [
@@ -433,6 +462,71 @@ class GroupController extends Controller
                 'total'        => $groups->total(),
             ]
         ]);
+    }
+
+    public function pendingAllRequests()
+    {
+        $groups = Auth::user()->groups()->wherePivotIn('role', ['owner', 'admin'])->get();
+        $groupIds = $groups->pluck('id');
+
+        $requests = FollowRequest::where('requestable_type', Group::class)
+                           ->whereIn('requestable_id', $groupIds)
+                           ->where('state', 'pending')
+                           ->with('creator.media')
+                           ->get()
+                           ->map(function ($request) {
+                               $group = Group::where('id',$request->requestable_id)->with('media')->firstOrFail();
+                               return [
+                                   'id'       => $request->id,
+                                   'requested_at' => $request->requested_at,
+                                   'creator'=>[
+                                       'user_id'  => $request->creator->id,
+                                       'name'     => $request->creator->name,
+                                       'username' => $request->creator->username,
+                                       'avatar'   => $request->creator->media ? url("storage/{$request->creator->media->path}") : null,
+                                   ],
+                                   'group' => [
+                                       'id'      => $group->id,
+                                       'name'    => $group->name,
+                                       'privacy' => $group->privacy,
+                                       'bio'     => $group->bio,
+                                       'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
+                                   ],
+                               ];
+                           });
+
+        return response()->json(['requests' => $requests]);
+    }
+
+
+    public function changeRole(Request $request, $groupId)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'role'    => 'required|in:admin,member',
+        ]);
+
+        $group = Group::findOrFail($groupId);
+
+        if ($group->owner_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($validated['user_id'] == $group->owner_id) {
+            return response()->json(['message' => 'Cannot change the role of the owner'], 422);
+        }
+
+        $isMember = $group->members()->where('user_id', $validated['user_id'])->exists();
+
+        if (! $isMember) {
+            return response()->json(['message' => 'User is not a member of the group'], 404);
+        }
+
+        $group->members()->updateExistingPivot($validated['user_id'], [
+            'role' => $validated['role']
+        ]);
+
+        return response()->json(['message' => 'Member role updated successfully']);
     }
 
 
