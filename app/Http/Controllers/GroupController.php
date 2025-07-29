@@ -70,6 +70,11 @@ class GroupController extends Controller
         $user = $request->user();
 
         $isMember = $group->isMember($user->id);
+        $role = null;
+        if ($isMember) {
+            $role = $group->members()->where('user_id', $user->id)->value('role');
+        }
+
 
         $owner = User::where('id',$group->owner_id)->with('media')->firstOrFail();
 
@@ -91,6 +96,7 @@ class GroupController extends Controller
                     'bio' => $group->bio,
                     'members_count' => $group->members_count,
                     'join_status' => $joinStatus,
+                    'role' => $role,
                     'owner' => [
                         'id' => $owner->id,
                         'name' => $owner->name,
@@ -377,6 +383,7 @@ class GroupController extends Controller
                     'bio'     => $group->bio,
                     'join_status' => $joinStatus,
                     'members_count' => $group->members_count,
+                    'role' => "owner",
                     'avatar'  => $group->media ? url("storage/{$group->media->path}") : null,
                     'owner_id' => $group->owner_id,
                 ];
