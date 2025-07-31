@@ -18,4 +18,9 @@ class SavedPost extends Model
     public function posts(){
         return $this->belongsToMany(Post::class,'post_saved_posts');
     }
+
+    public function isSaved($post_id)
+    {
+        return $this->posts()->where('post_id', $post_id)->exists();
+    }
 }

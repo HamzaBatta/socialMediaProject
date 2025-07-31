@@ -50,6 +50,8 @@ class PostController extends Controller
         $posts = $query->latest()->paginate($perPage, ['*'], 'page', $page);
 
         $posts->getCollection()->transform(function ($post) use ($authUser) {
+            $savedPost = $authUser->savedPost;
+            $isSaved = $savedPost ? $savedPost->isSaved($post->id) : false;
             $isFollowing = $authUser->isFollowing($post->user);
             return [
                 'id' => $post->id,
@@ -64,6 +66,7 @@ class PostController extends Controller
                     'url' => url("storage/{$media->path}"),
                 ]),
                 'privacy' => $post->privacy,
+                'is_saved' => $isSaved,
                 'created_at' => $post->created_at,
                 'user' => [
                     'id' => $post->user->id,
@@ -190,7 +193,10 @@ class PostController extends Controller
         if (!Gate::allows('view', $post)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+        $savedPost = $authUser->savedPost;
+        $isSaved = $savedPost ? $savedPost->isSaved($post->id) : false;
         $isFollowing = $authUser->isFollowing($post->user);
+
 
         return response()->json(['post'=>[
             'id' => $post->id,
@@ -205,6 +211,7 @@ class PostController extends Controller
                 'url' => url("storage/{$media->path}"),
             ]),
             'privacy' => $post->privacy,
+            'is_saved' => $isSaved,
             'created_at' => $post->created_at,
             'user' => [
                 'id' => $post->user->id,
@@ -325,6 +332,8 @@ class PostController extends Controller
         $posts = $query->paginate($perPage, ['*'], 'page', $page);
 
         $posts->getCollection()->transform(function ($post) use ($authUser) {
+            $savedPost = $authUser->savedPost;
+            $isSaved = $savedPost ? $savedPost->isSaved($post->id) : false;
             $isFollowing = $authUser->isFollowing($post->user);
             return [
                 'id' => $post->id,
@@ -339,6 +348,7 @@ class PostController extends Controller
                     'url' => url("storage/{$media->path}"),
                 ]),
                 'privacy' => $post->privacy,
+                'is_saved' => $isSaved,
                 'created_at' => $post->created_at,
                 'user' => [
                     'id' => $post->user->id,
@@ -390,6 +400,8 @@ class PostController extends Controller
         $posts = $query->paginate($perPage, ['*'], 'page', $page);
 
         $posts->getCollection()->transform(function ($post) use ($authUser) {
+            $savedPost = $authUser->savedPost;
+            $isSaved = $savedPost ? $savedPost->isSaved($post->id) : false;
             $isFollowing = $authUser->isFollowing($post->user);
             return [
                 'id' => $post->id,
@@ -404,6 +416,7 @@ class PostController extends Controller
                     'url' => url("storage/{$media->path}"),
                 ]),
                 'privacy' => $post->privacy,
+                'is_saved' => $isSaved,
                 'created_at' => $post->created_at,
                 'user' => [
                     'id' => $post->user->id,

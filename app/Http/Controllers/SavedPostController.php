@@ -11,22 +11,31 @@ class SavedPostController extends Controller
 {
     public function index(Request $request)
     {
-        $user = Auth::user();
+        $authUser = Auth::user();
+        $page = $request->query('page', 1);
+        $perPage = 10;
 
-        $savedPost = $user->savedPost;
+        $savedPost = $authUser->savedPost;
 
         if (!$savedPost) {
             return response()->json(['message' => 'No saved posts found.'], 404);
         }
 
-        $posts = $savedPost->posts()->with('media','user')->get()->map(function ($post) {
-            $user = Auth::user();
+        $query = $savedPost->posts()
+                           ->with(['media', 'user.media'])
+                           ->withCount(['likes', 'comments'])
+                           ->latest();
+
+        $posts = $query->paginate($perPage, ['*'], 'page', $page);
+
+        $posts->getCollection()->transform(function ($post) use ($authUser) {
+            $isFollowing = $authUser->isFollowing($post->user);
             return [
                 'id' => $post->id,
                 'text' => $post->text,
                 'likes_count' => $post->likes_count,
                 'comments_count' => $post->comments_count,
-                'is_liked' => $post->isLikedBy($user->id),
+                'is_liked' => $post->isLikedBy($authUser->id),
                 'group_id' => $post->group_id,
                 'media' => $post->media->map(fn($media) => [
                     'id' => $media->id,
@@ -38,17 +47,26 @@ class SavedPostController extends Controller
                 'user' => [
                     'id' => $post->user->id,
                     'name' => $post->user->name,
+                    'username' => $post->user->username,
                     'avatar' => $post->user->media
                         ? url("storage/{$post->user->media->path}")
                         : null,
+                    'is_following' => $isFollowing,
+                    'is_private' => $post->user->is_private,
                 ],
             ];
         });
 
         return response()->json([
-            'saved_posts' => $posts,
+            'saved_posts' => $posts->items(),
+            'pagination' => [
+                'current_page' => $posts->currentPage(),
+                'per_page' => $posts->perPage(),
+                'total' => $posts->total(),
+                'last_page' => $posts->lastPage(),
+            ],
             'message' => 'Saved posts retrieved successfully.'
-        ],200);
+        ]);
     }
 
     public function store(Request $request,$post_id)
