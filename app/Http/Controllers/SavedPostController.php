@@ -28,8 +28,9 @@ class SavedPostController extends Controller
 
         $posts = $query->paginate($perPage, ['*'], 'page', $page);
 
-        $posts->getCollection()->transform(function ($post) use ($authUser) {
+        $posts->getCollection()->transform(function ($post) use ($authUser,$savedPost) {
             $isFollowing = $authUser->isFollowing($post->user);
+            $isSaved = $savedPost->isSaved($post->id) ? : false;
             return [
                 'id' => $post->id,
                 'text' => $post->text,
@@ -43,6 +44,7 @@ class SavedPostController extends Controller
                     'url' => url("storage/{$media->path}"),
                 ]),
                 'privacy' => $post->privacy,
+                'is_saved' => $isSaved,
                 'created_at' => $post->created_at,
                 'user' => [
                     'id' => $post->user->id,
