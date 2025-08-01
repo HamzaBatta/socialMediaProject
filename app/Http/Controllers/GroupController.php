@@ -311,7 +311,7 @@ class GroupController extends Controller
                                   'id'       => $request->id,
                                   'requested_at' => $request->requested_at,
                                   'creator' => [
-                                      'user_id'  => $request->creator->id,
+                                      'id'  => $request->creator->id,
                                       'name'     => $request->creator->name,
                                       'username' => $request->creator->username,
                                       'avatar'    => $request->creator->media ? url("storage/{$request->creator->media->path}") : null,
@@ -489,7 +489,7 @@ class GroupController extends Controller
                                    'id'       => $request->id,
                                    'requested_at' => $request->requested_at,
                                    'creator'=>[
-                                       'user_id'  => $request->creator->id,
+                                       'id'  => $request->creator->id,
                                        'name'     => $request->creator->name,
                                        'username' => $request->creator->username,
                                        'avatar'   => $request->creator->media ? url("storage/{$request->creator->media->path}") : null,
