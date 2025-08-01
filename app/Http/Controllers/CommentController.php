@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Comment;
+use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -90,6 +91,10 @@ class CommentController extends Controller
             'user_id' => auth()->id(),
         ]);
 
+        if($request->commentable_type === 'Post') {
+                Post::where('id', $request->commentable_id)->increment('comments_count');
+        }
+
         $comment->loadCount('likes')->load('user.media');
 
         return response()->json([
@@ -151,6 +156,9 @@ class CommentController extends Controller
 
         if ($comment->user_id !== auth()->id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if($comment->commentable_type === 'Post'){
+            Post::where('id',$comment->commentable_id)->decrement('comments_count');
         }
 
         $comment->delete();

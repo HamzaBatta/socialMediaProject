@@ -27,8 +27,7 @@ class PostController extends Controller
 
         $query = Post::query()
                      ->where('user_id', $targetUser->id)
-                     ->with(['media', 'user.media'])
-                     ->withCount(['likes', 'comments']);
+                     ->with(['media', 'user.media']);
 
         if ($authUser->id !== $targetUser->id) {
             if ($authUser->isFollowing($targetUser)) {
@@ -187,7 +186,7 @@ class PostController extends Controller
     {
         $authUser = Auth::user();
 
-        $post = Post::with(['media', 'user.media'])->withCount(['likes', 'comments'])->findOrFail($id);
+        $post = Post::with(['media', 'user.media'])->findOrFail($id);
 
         if (!Gate::allows('view', $post)) {
             return response()->json(['message' => 'Unauthorized'], 403);
@@ -325,7 +324,6 @@ class PostController extends Controller
 
         $query = Post::whereIn('user_id', $followingIds)
                      ->with(['media', 'user.media'])
-                     ->withCount(['likes', 'comments'])
                      ->latest();
 
         $posts = $query->paginate($perPage, ['*'], 'page', $page);
@@ -387,7 +385,6 @@ class PostController extends Controller
         $query = Post::query()
                      ->where('group_id', $request->group_id)
                      ->with(['media', 'user.media'])
-                     ->withCount(['likes', 'comments'])
                      ->latest();
 
         $query->whereDoesntHave('user.blockedUsers', function ($q) use ($authUser) {

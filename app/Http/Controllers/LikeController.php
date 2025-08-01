@@ -57,28 +57,38 @@ class LikeController extends Controller
                     ->first();
 
         if ($like) {
+
+            if($likeableType === Post::class) {
+                Post::where('id', $likeableId)->decrement('likes_count');
+            }
+
             $like->delete();
 
 
-        app(EventPublisher::class)->publishEvent('Unlike',[
-                'id' => $user->id,
-                'likeable_type' => $likeableType,
-                'likeable_id'=> $likeableId
-        ]);
+//            app(EventPublisher::class)->publishEvent('Unlike',[
+//                'id' => $user->id,
+//                'likeable_type' => $likeableType,
+//                'likeable_id'=> $likeableId
+//        ]);
 
             return response()->json(['message' => 'Unliked successfully'], 200);
         } else {
+
+            if($likeableType === Post::class) {
+                Post::where('id', $likeableId)->increment('likes_count');
+            }
+
             Like::create([
                 'user_id' => $user->id,
                 'likeable_type' => $likeableType,
                 'likeable_id' => $likeableId,
             ]);
 
-        app(EventPublisher::class)->publishEvent('Like',[
-                'id' => $user->id,
-                'likeable_type' => $likeableType,
-                'likeable_id'=> $likeableId
-        ]);
+//        app(EventPublisher::class)->publishEvent('Like',[
+//                'id' => $user->id,
+//                'likeable_type' => $likeableType,
+//                'likeable_id'=> $likeableId
+//        ]);
 
 
             return response()->json(['message' => 'Liked successfully'], 201);
