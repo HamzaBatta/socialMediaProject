@@ -154,7 +154,6 @@ class PostController extends Controller
                     'is_private' => $post->user->is_private
                 ]
         ]);
-        echo "sent a message to the PostCreated using rabbitmq";
         return response()->json([
             'message' => 'Post created successfully',
             'post' => [
