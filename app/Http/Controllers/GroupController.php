@@ -39,7 +39,20 @@ class GroupController extends Controller
         $owner = User::findOrFail($group->owner_id);
 
 
-        app(EventPublisher::class)->publishEvent('GroupCreated',$validated);
+        app(EventPublisher::class)->publishEvent('GroupCreated',[
+                'id'=>$group->id,
+                'name'=>$group->name,
+                'privacy'=>$group->privacy,
+                'bio' => $group->bio,
+                'owner'=>[
+                    'id'=>$owner->id,
+                    'name'=>$owner->name,
+                    'username'=>$owner->username,
+                    'avatar' => $owner->media ? url("storage/{$owner->media->path}") : null,
+                ],
+                'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
+
+        ]);
 
 
 
