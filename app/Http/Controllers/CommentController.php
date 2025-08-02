@@ -6,6 +6,7 @@ use App\Models\Comment;
 use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Services\EventPublisher;
 
 class CommentController extends Controller
 {
@@ -91,8 +92,22 @@ class CommentController extends Controller
             'user_id' => auth()->id(),
         ]);
 
+
         if($request->commentable_type === 'Post') {
-                Post::where('id', $request->commentable_id)->increment('comments_count');
+            Post::where('id', $request->commentable_id)->increment('comments_count');
+            app(EventPublisher::class)->publishEvent('CommentCreated',[
+            'id' => $comment->id,
+            'text' => $request->text,
+            'commentable_id' => $request->commentable_id,
+            'user' => [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                    'avatar' => $comment->user->media ? url("storage/{$comment->user->media->path}") : null,
+            ],
+            'created_at' => $comment->created_at,
+
+        ]);
+
         }
 
         $comment->loadCount('likes')->load('user.media');
@@ -159,6 +174,9 @@ class CommentController extends Controller
         }
         if($comment->commentable_type === 'Post'){
             Post::where('id',$comment->commentable_id)->decrement('comments_count');
+            app(EventPublisher::class)->publishEvent('DeletedComment',[
+                'id'=>$id
+            ]);
         }
 
         $comment->delete();
