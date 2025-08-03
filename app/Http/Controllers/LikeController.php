@@ -65,11 +65,11 @@ class LikeController extends Controller
             $like->delete();
 
 
-//            app(EventPublisher::class)->publishEvent('Unlike',[
-//                'id' => $user->id,
-//                'likeable_type' => $likeableType,
-//                'likeable_id'=> $likeableId
-//        ]);
+            app(EventPublisher::class)->publishEvent('Unlike',[
+                'id' => $user->id,
+                'likeable_type' => $likeableType,
+                'likeable_id'=> $likeableId
+        ]);
 
             return response()->json(['message' => 'Unliked successfully'], 200);
         } else {
@@ -84,11 +84,11 @@ class LikeController extends Controller
                 'likeable_id' => $likeableId,
             ]);
 
-//        app(EventPublisher::class)->publishEvent('Like',[
-//                'id' => $user->id,
-//                'likeable_type' => $likeableType,
-//                'likeable_id'=> $likeableId
-//        ]);
+        app(EventPublisher::class)->publishEvent('Like',[
+                'id' => $user->id,
+                'likeable_type' => $likeableType,
+                'likeable_id'=> $likeableId
+        ]);
 
 
             return response()->json(['message' => 'Liked successfully'], 201);
