@@ -21,7 +21,7 @@ class CommentController extends Controller
 
         $perPage = 10;
         $page = $request->query('page', 1);
-        $authUser = Auth::user();
+        $authUserId = Auth::id();
 
         $query = Comment::query()
                         ->with(['user.media'])
@@ -41,20 +41,21 @@ class CommentController extends Controller
         }
 
         // Block logic
-        $query->whereDoesntHave('user.blockedUsers', function ($q) use ($authUser) {
-            $q->where('blocked_id', $authUser->id);
-        })->whereDoesntHave('user.blockedByUsers', function ($q) use ($authUser) {
-            $q->where('blocker_id', $authUser->id);
+        $query->whereDoesntHave('user.blockedUsers', function ($q) use ($authUserId) {
+            $q->where('blocked_id', $authUserId);
+        })->whereDoesntHave('user.blockedByUsers', function ($q) use ($authUserId) {
+            $q->where('blocker_id', $authUserId);
         });
 
         $comments = $query->paginate($perPage, ['*'], 'page', $page);
 
-        $comments->getCollection()->transform(function ($comment) {
+        $comments->getCollection()->transform(function ($comment) use($authUserId) {
             return [
                 'id' => $comment->id,
                 'text' => $comment->text,
                 'likes_count' => $comment->likes_count,
                 'replies_count' => $comment->replies_count,
+                'is_liked' => $comment->isLikedBy($authUserId),
                 'user' => [
                     'id' => $comment->user->id,
                     'name' => $comment->user->name,
@@ -131,6 +132,7 @@ class CommentController extends Controller
 
     public function show($id)
     {
+        $authUserId = Auth::id();
         $comment = Comment::with(['user.media'])->withCount('likes')->findOrFail($id);
 
         return response()->json([
@@ -138,6 +140,7 @@ class CommentController extends Controller
                 'id' => $comment->id,
                 'text' => $comment->text,
                 'likes_count' => $comment->likes_count,
+                'is_liked' => $comment->isLikedBy($authUserId),
                 'user' => [
                     'id' => $comment->user->id,
                     'name' => $comment->user->name,
