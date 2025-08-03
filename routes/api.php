@@ -16,6 +16,19 @@ use App\Http\Controllers\StatusController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
+
+
+//Route::get('/test-notification', function (\App\Services\FirebaseService $firebase) {
+//    $deviceToken = 'YOUR_DEVICE_FCM_TOKEN';
+//    $firebase->sendNotification($deviceToken, 'Test Title', 'This is a test notification');
+//
+//    return response()->json(['message' => 'Notification sent']);
+//});
+Route::get('/test-firebase', function (\App\Services\FirebaseService $firebase) {
+    $firebase->sendTopicNotification('test', 'Hello', 'This is a topic-based test');
+    return response()->json(['message' => 'Firebase topic test sent']);
+});
+
 // {====== Public Routes ======}
 Route::post('/auth/google/token', [GoogleAuthController::class, 'handleGoogleToken']);
 
