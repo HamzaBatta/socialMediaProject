@@ -128,6 +128,7 @@ class GroupController extends Controller
                 'privacy'=>$group->privacy,
                 'members_count' => $group->members_count,
                 'join_status' => $joinStatus,
+                'bio' => $group->bio,
                 'avatar' => $group->media ? url("storage/{$group->media->path}") : null,
                 'owner' => [
                     'id' => $owner->id,
