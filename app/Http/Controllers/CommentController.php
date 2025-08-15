@@ -133,7 +133,7 @@ class CommentController extends Controller
     public function show($id)
     {
         $authUserId = Auth::id();
-        $comment = Comment::with(['user.media'])->withCount('likes')->findOrFail($id);
+        $comment = Comment::with(['user.media'])->withCount('likes','replies')->findOrFail($id);
 
         return response()->json([
             'comment' => [
@@ -141,6 +141,7 @@ class CommentController extends Controller
                 'text' => $comment->text,
                 'likes_count' => $comment->likes_count,
                 'is_liked' => $comment->isLikedBy($authUserId),
+                'replies_count' => $comment->replies_count,
                 'user' => [
                     'id' => $comment->user->id,
                     'name' => $comment->user->name,

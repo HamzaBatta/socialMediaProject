@@ -29,7 +29,8 @@ class Comment extends Model
 
     public function replies()
     {
-        return $this->morphMany(Comment::class, 'commentable');
+        return $this->morphMany(Comment::class, 'commentable')
+                    ->where('commentable_type', 'Comment');
     }
 
     public function likes(): MorphMany
