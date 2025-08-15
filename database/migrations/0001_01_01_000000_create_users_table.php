@@ -24,6 +24,7 @@ return new class extends Migration
             $table->string('bio')->nullable();
             $table->boolean('is_private')->default(false);
             $table->json('personal_info')->nullable();
+            $table->string('device_token')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

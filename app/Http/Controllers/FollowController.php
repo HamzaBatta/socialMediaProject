@@ -7,13 +7,14 @@ use App\Models\Request as FollowRequest;    // your Eloquent model, aliased
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use App\Services\EventPublisher;
+use App\Services\FirebaseService;
 
 class FollowController extends Controller
 {
 
 
 
-    public function follow(Request $request)
+    public function follow(Request $request,FirebaseService $firebase)
     {
         $currentUser = User::findOrFail(Auth::id());
         $targetUser = User::findOrFail($request->targetId);
@@ -37,6 +38,19 @@ class FollowController extends Controller
                         'user_id'      => $currentUser->id,
                         'requested_at' => now(),
                     ]);
+                    // 🔔 Send follow request notification
+                    if ($targetUser->device_token) {
+                        $firebase->sendStructuredNotification(
+                            $targetUser->device_token,
+                            'New Follow Request',
+                            "{$currentUser->name} requested to follow you",
+                            '/other-account-page',
+                            [
+                                'tab' => 'notifications-page'
+                            ],
+                            $currentUser->media ? url("storage/{$currentUser->media->path}") : null
+                        );
+                    }
                     return response()->json(['message' => 'Follow request sent.'], 200);
                 }
 
@@ -53,10 +67,25 @@ class FollowController extends Controller
                 return response()->json(['message' => 'there is a database error'], 400);
             }
 
-        app(EventPublisher::class)->publishEvent('UserFollowed',[
+            // 🔔 Send follow notification
+            if($targetUser->device_token){
+                $firebase->sendStructuredNotification(
+                    $targetUser->device_token,
+                    'New Follower',
+                    "{$currentUser->name} started following you",
+                    '/other-account-page',
+                    [
+                        'personal_account_id' => $targetUser->id,
+                        'other_account_id' => $currentUser->id
+                    ],
+                    $currentUser->media ? url("storage/{$currentUser->media->path}") : null
+                );
+            }
+
+            app(EventPublisher::class)->publishEvent('UserFollowed',[
                 'id' => $currentUser->id,
                 'target' => $targetUser->id,
-        ]);
+                ]);
 
 
             return response()->json(['message' => 'User followed successfully.'], 200);
@@ -162,7 +191,7 @@ class FollowController extends Controller
      * @param  int  $requestId
      * @return \Illuminate\Http\JsonResponse
      */
-    public function respondToRequest(Request $httpRequest, $requestId)
+    public function respondToRequest(Request $httpRequest, $requestId,FirebaseService $firebase)
     {
         $currentUser = Auth::user();
 
@@ -191,6 +220,20 @@ class FollowController extends Controller
                     'id' => $currentUser->id,
                     'target' => $requestingUser->id,
             ]);
+            // 🔔 Send follow notification
+            if($requestingUser->device_token){
+                $firebase->sendStructuredNotification(
+                    $requestingUser->device_token,
+                    'New Follower',
+                    "{$currentUser->name} started following you",
+                    '/other-account-page',
+                    [
+                        'personal_account_id' => $requestingUser->id,
+                        'other_account_id' => $currentUser->id
+                    ],
+                    $currentUser->media ? url("storage/{$currentUser->media->path}") : null
+                );
+            }
 
 
             return response()->json(['message' => 'Follow request approved.'], 200);

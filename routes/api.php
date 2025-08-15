@@ -15,19 +15,25 @@ use App\Http\Controllers\SavedPostController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 
 
 
-//Route::get('/test-notification', function (\App\Services\FirebaseService $firebase) {
-//    $deviceToken = 'YOUR_DEVICE_FCM_TOKEN';
-//    $firebase->sendNotification($deviceToken, 'Test Title', 'This is a test notification');
-//
-//    return response()->json(['message' => 'Notification sent']);
-//});
+// {====== Notifications ======}
 Route::get('/test-firebase', function (\App\Services\FirebaseService $firebase) {
     $firebase->sendTopicNotification('test', 'Hello', 'This is a topic-based test');
     return response()->json(['message' => 'Firebase topic test sent']);
 });
+
+Route::post('/assign-fcm', function (Request $request) {
+    $request->validate([
+        'device_token' => 'required|string',
+    ]);
+    $user = $request->user();
+    $user->device_token = $request->device_token;
+    $user->save();
+    return response()->json(['message' => 'Device token saved']);
+})->middleware('auth:api');
 
 // {====== Public Routes ======}
 Route::post('/auth/google/token', [GoogleAuthController::class, 'handleGoogleToken']);
