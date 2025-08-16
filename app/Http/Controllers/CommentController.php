@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\Post;
+use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Services\EventPublisher;
@@ -78,24 +79,43 @@ class CommentController extends Controller
 
 
 
-    public function store(Request $request)
+    public function store(Request $request,FirebaseService $firebase)
     {
         $request->validate([
             'text' => 'required|string|max:1000',
             'commentable_type' => 'required|in:Post,Ad,Comment',
                 'commentable_id' => 'required|integer',
         ]);
-
+        $authUser = Auth::user();
         $comment = Comment::create([
             'text' => $request->text,
             'commentable_type' => $request->commentable_type,
             'commentable_id' => $request->commentable_id,
-            'user_id' => auth()->id(),
+            'user_id' => $authUser->id,
         ]);
 
 
         if($request->commentable_type === 'Post') {
-            Post::where('id', $request->commentable_id)->increment('comments_count');
+            $post = Post::with('user')->find($request->commentable_id);
+
+            $post->increment('comments_count');
+
+            // Send notification to post owner
+            if ($post->user && $post->user->device_token && $post->user !== $authUser) {
+                $firebase->sendStructuredNotification(
+                    $post->user->device_token,
+                    "{$authUser->name} commented on your post",
+                    "$comment->text",
+                    '' ,
+                    [
+                        'post_id' => $post->id,
+                        'comment_id' => $comment->id,
+                        'personal_account_id' => $authUser->id,
+                        'other_account_id' => $post->user->id,
+                    ],
+                    $authUser->media ? url("storage/{$authUser->media->path}") : null
+                );
+            }
             app(EventPublisher::class)->publishEvent('CommentCreated',[
             'id' => $comment->id,
             'text' => $request->text,
@@ -109,6 +129,24 @@ class CommentController extends Controller
 
         ]);
 
+        }elseif ($request->commentable_type === 'Comment') {
+            $parentComment = Comment::with('user')->find($request->commentable_id);
+
+            if ($parentComment && $parentComment->user && $parentComment->user->device_token &&$parentComment->user !== $authUser) {
+                $firebase->sendStructuredNotification(
+                    $parentComment->user->device_token,
+                    "{$authUser->name} replied to your comment",
+                    $comment->text,
+                    '',
+                    [
+                        'comment_id' => $parentComment->id,
+                        'reply_id' => $comment->id,
+                        'personal_account_id' => $authUser->id,
+                        'other_account_id' => $parentComment->user->id,
+                    ],
+                    $authUser->media ? url("storage/{$authUser->media->path}") : null
+                );
+            }
         }
 
         $comment->loadCount('likes')->load('user.media');

@@ -8,13 +8,14 @@ use App\Models\Like;
 use App\Models\Post;
 use App\Models\Status;
 use App\Models\User;
+use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Request as FollowRequest;
 use App\Services\EventPublisher;
 class LikeController extends Controller
 {
-    public function toggle(Request $request)
+    public function toggle(Request $request,FirebaseService $firebase)
     {
         $request->validate([
             'post_id' => 'nullable|exists:posts,id',
@@ -34,24 +35,59 @@ class LikeController extends Controller
             return response()->json(['message' => 'Exactly one of post_id, comment_id, or status_id must be provided'], 422);
         }
 
-        $user = auth()->user();
+        $authUser = Auth::user();
+        $targetUser = null;
+        $title = '';
+        $body = '';
+        $route = '';
+        $details = [];
 
         // Determine the type and ID
         if ($request->post_id) {
             $likeableType = Post::class;
             $likeableId = $request->post_id;
+            $post = Post::with('user.media')->findOrFail($likeableId);
+            $targetUser = $post->user;
+            $title = 'Post Update';
+            $body = "{$authUser->name} liked your post";
+            $route = '';
+            $details = [
+                'post_id' => $post->id,
+                'personal_account_id' => $authUser->id,
+                'other_account_id' => $targetUser->id
+            ];
         } elseif ($request->comment_id) {
             $likeableType = Comment::class;
             $likeableId = $request->comment_id;
+            $comment = Comment::with('user.media')->findOrFail($likeableId);
+            $targetUser = $comment->user;
+            $title = "{$authUser->name} liked your comment";
+            $body = "$comment->text";
+            $route = '';
+            $details = [
+                'comment_id' => $comment->id,
+                'personal_account_id' => $authUser->id,
+                'other_account_id' => $targetUser->id
+            ];
         } elseif ($request->status_id) {
             $likeableType = Status::class;
             $likeableId = $request->status_id;
+            $status = Status::with('user.media')->findOrFail($likeableId);
+            $targetUser = $status->user;
+            $title = 'Status Update';
+            $body = "{$authUser->name} liked your status";
+            $route = '';
+            $details = [
+                'status_id' => $status->id,
+                'personal_account_id' => $authUser->id,
+                'other_account_id' => $targetUser->id
+            ];
         } elseif ($request->ad_id) {
             $likeableType = Ad::class;
             $likeableId = $request->ad_id;
         }
 
-        $like = Like::where('user_id', $user->id)
+        $like = Like::where('user_id', $authUser->id)
                     ->where('likeable_type', $likeableType)
                     ->where('likeable_id', $likeableId)
                     ->first();
@@ -66,7 +102,7 @@ class LikeController extends Controller
 
 
             app(EventPublisher::class)->publishEvent('Unlike',[
-                'id' => $user->id,
+                'id' => $authUser->id,
                 'likeable_type' => $likeableType,
                 'likeable_id'=> $likeableId
         ]);
@@ -79,13 +115,25 @@ class LikeController extends Controller
             }
 
             Like::create([
-                'user_id' => $user->id,
+                'user_id' => $authUser->id,
                 'likeable_type' => $likeableType,
                 'likeable_id' => $likeableId,
             ]);
 
+            //send notification only if target user has a device token and is not the liker
+            if ($targetUser && $targetUser->id !== $authUser->id && $targetUser->device_token) {
+                $firebase->sendStructuredNotification(
+                    $targetUser->device_token,
+                    $title,
+                    $body,
+                    $route,
+                    $details,
+                    $authUser->media ? url("storage/{$authUser->media->path}") : null
+                );
+            }
+
         app(EventPublisher::class)->publishEvent('Like',[
-                'id' => $user->id,
+                'id' => $authUser->id,
                 'likeable_type' => $likeableType,
                 'likeable_id'=> $likeableId
         ]);
