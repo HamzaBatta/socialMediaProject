@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Group;
 use App\Http\Requests\StoreGroupRequest;
 use App\Http\Requests\UpdateGroupRequest;
+use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,7 @@ class GroupController extends Controller
 {
 
 
-    public function store(Request $request)
+    public function store(Request $request,FirebaseService $firebase)
     {
         $validated = $request->validate([
             'name'    => 'required|string|max:255',
@@ -37,6 +38,11 @@ class GroupController extends Controller
         }
 
         $owner = User::findOrFail($group->owner_id);
+
+        if($owner->device_token){
+            $topic = 'group_' . $group->id . '_admins';
+            $firebase->subscribeToTopic($topic, [$owner->device_token]);
+        }
 
 
         app(EventPublisher::class)->publishEvent('GroupCreated',[
@@ -210,7 +216,7 @@ class GroupController extends Controller
         return response()->json(['message' => 'Group deleted successfully.'], 204);
     }
 
-    public function join(Request $request,$group_id)
+    public function join(Request $request,$group_id,FirebaseService $firebase)
     {
         $groupId = $request->group_id;
         $group = Group::findOrFail($groupId);
@@ -229,6 +235,15 @@ class GroupController extends Controller
                         'user_id' => $user->id,
                         'requested_at' => now(),
                     ]);
+                    $topic = 'group_' . $group->id . '_admins';
+                    $firebase->sendTopicNotification(
+                        $topic,
+                        "Join Request",
+                        "{$user->name} requested to join your group {$group->name}",
+                        '/group-join-requests',
+                        ['group_id' => $group->id],
+                        $user->media ? url("storage/{$user->media->path}") : null
+                    );
                     return response()->json(['message' => 'sent a follow request'], 200);
                 }else {
                     $existingRequest->delete();
@@ -250,7 +265,7 @@ class GroupController extends Controller
         return response()->json(['message' => 'Already a member.'], 200);
     }
 
-    public function leave(Request $request)
+    public function leave(Request $request,FirebaseService $firebase)
     {
 
         $groupId = $request->group_id;
@@ -260,12 +275,24 @@ class GroupController extends Controller
 
         if ($group->isMember($user->id)) {
 
+            $wasAdmin = $group->members()
+                              ->where('user_id', $user->id)
+                              ->wherePivot('role', 'admin')
+                              ->exists();
+
             $group->members()->detach($user->id);
 
             app(EventPublisher::class)->publishEvent('LeaveGroup',[
                 'id'=> $group->id,
                 'user'=>$user->id
             ]);
+
+            if ($wasAdmin && $user->device_token) {
+                $firebase->unsubscribeFromTopic(
+                    $user->device_token,
+                    "group_{$group->id}_admins"
+                );
+            }
 
 
             return response()->json(['message' => 'You have left the group.'], 200);
@@ -336,7 +363,7 @@ class GroupController extends Controller
         return response()->json(['requests' => $requests]);
     }
 
-    public function respondToRequest(Request $request, $groupId)
+    public function respondToRequest(Request $request, $groupId,FirebaseService $firebase)
     {
         $validated = $request->validate([
             'request_id' => 'required|exists:requests,id',
@@ -369,6 +396,18 @@ class GroupController extends Controller
                 'id'=> $group->id,
                 'user'=>$joinRequest->user_id
             ]);
+
+            $targetUser = $joinRequest->user;
+            if ($targetUser && $targetUser->device_token) {
+                $firebase->sendStructuredNotification(
+                    $targetUser->device_token,
+                    "Join Request",
+                    "Your request to join {$group->name} is approved",
+                    '/group-page',
+                    ['group_id' => $group->id],
+                     $group->media ? url("storage/{$group->media->path}") : null
+                );
+            }
 
             return response()->json(['message' => 'Request approved and user added to group.']);
         }
@@ -529,7 +568,8 @@ class GroupController extends Controller
             'role'    => 'required|in:admin,member',
         ]);
 
-        $user_id = $request->user_id;
+
+        $targetUser = User::findOrFail($request->user_id);
 
         $group = Group::findOrFail($groupId);
 
@@ -537,19 +577,29 @@ class GroupController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if ($user_id == $group->owner_id) {
+        if ($targetUser->id == $group->owner_id) {
             return response()->json(['message' => 'Cannot change the role of the owner'], 422);
         }
 
-        $isMember = $group->isMember($user_id);
+        $isMember = $group->isMember($targetUser->id);
 
         if (!$isMember) {
             return response()->json(['message' => 'User is not a member of the group'], 404);
         }
 
-        $group->members()->updateExistingPivot($user_id, [
+        $group->members()->updateExistingPivot($targetUser->id, [
             'role' => $request->role
         ]);
+
+        if($targetUser->device_token){
+            $topic = 'group_' . $group->id . '_admins';
+
+            if ($request->role === 'admin') {
+                app(FirebaseService::class)->subscribeToTopic($topic, [$targetUser->device_token]);
+            } elseif ($request->role === 'member') {
+                app(FirebaseService::class)->unsubscribeFromTopic($topic, [$targetUser->device_token]);
+            }
+        }
 
         return response()->json(['message' => 'Member role updated successfully']);
     }

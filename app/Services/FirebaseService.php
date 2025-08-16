@@ -21,7 +21,7 @@ class FirebaseService
         $this->client = new Client();
     }
 
-    public function sendStructuredNotification($token,$title,$body,$route,$details,$image)
+    public function sendStructuredNotification($token,$title,$body,$route,$details = [],$image=null)
     {
         $message = [
             'message' => [
@@ -86,11 +86,69 @@ class FirebaseService
         return $token['access_token'];
     }
 
-    public function sendTopicNotification( $topic,  $title,  $body)
+    public function sendTopicNotification($topic, $title, $body, $route, $details = [], $image = null)
     {
-        $message = CloudMessage::withTarget('topic', $topic)
-                               ->withNotification(Notification::create($title, $body));
+        $message = [
+            'message' => [
+                'topic' => $topic,
+                'notification' => [
+                    'title' => $title,
+                    'body'  => $body,
+                ],
+                'data' => [
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    'route' => $route,
+                    'details' => json_encode($details),
+                ],
+                'android' => [
+                    'notification' => [
+                        'sound' => 'default',
+                    ]
+                ],
+                'apns' => [
+                    'payload' => [
+                        'aps' => [
+                            'mutable-content' => 1,
+                            'sound' => 'default',
+                        ]
+                    ]
+                ]
+            ]
+        ];
 
-        $this->messaging->send($message);
+        if ($image) {
+            $message['message']['notification']['image'] = $image;
+        }
+
+        try {
+            $accessToken = $this->getAccessToken();
+            $this->client->post(
+                'https://fcm.googleapis.com/v1/projects/' . $this->projectId . '/messages:send',
+                [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $accessToken,
+                        'Content-Type' => 'application/json',
+                    ],
+                    'json' => $message,
+                ]
+            );
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $response = $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null;
+            Log::error('FCM Topic Send Error', [
+                'message' => $e->getMessage(),
+                'response' => $response,
+            ]);
+        }
+    }
+
+
+    public function subscribeToTopic($topic, $tokens)
+    {
+        $this->messaging->subscribeToTopic($topic, $tokens);
+    }
+
+    public function unsubscribeFromTopic($topic, $tokens)
+    {
+        $this->messaging->unsubscribeFromTopic($topic, $tokens);
     }
 }
