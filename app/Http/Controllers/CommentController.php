@@ -99,19 +99,42 @@ class CommentController extends Controller
             $post = Post::with('user')->find($request->commentable_id);
 
             $post->increment('comments_count');
-
+            $savedPost = $post->user->savedPost;
+            $isSaved = $savedPost ? $savedPost->isSaved($post->id) : false;
             // Send notification to post owner
             if ($post->user && $post->user->device_token && $post->user !== $authUser) {
                 $firebase->sendStructuredNotification(
                     $post->user->device_token,
                     "{$authUser->name} commented on your post",
                     "$comment->text",
-                    '' ,
+                    '/comments-page' ,
                     [
-                        'post_id' => $post->id,
-                        'comment_id' => $comment->id,
-                        'personal_account_id' => $authUser->id,
-                        'other_account_id' => $post->user->id,
+                        'post'=>[
+                            'id' => $post->id,
+                            'text' => $post->text,
+                            'likes_count' => $post->likes_count,
+                            'comments_count' => $post->comments_count,
+                            'is_liked' => $post->isLikedBy($post->user->id),
+                            'group_id' => $post->group_id,
+                            'media' => $post->media->map(fn($media) => [
+                                'id' => $media->id,
+                                'type' => $media->type,
+                                'url' => url("storage/{$media->path}"),
+                            ]),
+                            'privacy' => $post->privacy,
+                            'is_saved' => $isSaved,
+                            'created_at' => $post->created_at,
+                            'user' => [
+                                'id' => $post->user->id,
+                                'name' => $post->user->name,
+                                'username' => $post->user->username,
+                                'avatar' => $post->user->media
+                                    ? url("storage/{$post->user->media->path}")
+                                    : null,
+                                'is_following' => false,
+                                'is_private' => $post->user->is_private
+                            ]
+                        ]
                     ],
                     $authUser->media ? url("storage/{$authUser->media->path}") : null
                 );
@@ -131,18 +154,14 @@ class CommentController extends Controller
 
         }elseif ($request->commentable_type === 'Comment') {
             $parentComment = Comment::with('user')->find($request->commentable_id);
-
             if ($parentComment && $parentComment->user && $parentComment->user->device_token &&$parentComment->user !== $authUser) {
                 $firebase->sendStructuredNotification(
                     $parentComment->user->device_token,
                     "{$authUser->name} replied to your comment",
                     $comment->text,
-                    '',
+                    '/comments-page',
                     [
-                        'comment_id' => $parentComment->id,
-                        'reply_id' => $comment->id,
-                        'personal_account_id' => $authUser->id,
-                        'other_account_id' => $parentComment->user->id,
+                        'post_id' =>$parentComment->getRootPostId()
                     ],
                     $authUser->media ? url("storage/{$authUser->media->path}") : null
                 );

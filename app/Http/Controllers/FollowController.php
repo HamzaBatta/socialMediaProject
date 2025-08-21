@@ -44,9 +44,9 @@ class FollowController extends Controller
                             $targetUser->device_token,
                             'New Follow Request',
                             "{$currentUser->name} requested to follow you",
-                            '/other-account-page',
+                            '/home',
                             [
-                                'tab' => 'notifications-page'
+                                'tab_index' => '3'
                             ],
                             $currentUser->media ? url("storage/{$currentUser->media->path}") : null
                         );

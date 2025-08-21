@@ -42,4 +42,15 @@ class Comment extends Model
     {
         return $this->likes()->where('user_id', $userId)->exists();
     }
+
+    public function getRootPostId()
+    {
+        $root = $this->commentable;
+
+        while ($root instanceof self) {
+            $root = $root->commentable;
+        }
+
+        return $root instanceof \App\Models\Post ? $root->id : null;
+    }
 }

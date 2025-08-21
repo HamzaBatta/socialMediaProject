@@ -46,28 +46,52 @@ class LikeController extends Controller
         if ($request->post_id) {
             $likeableType = Post::class;
             $likeableId = $request->post_id;
-            $post = Post::with('user.media')->findOrFail($likeableId);
+            $post = Post::with('user.media','media')->findOrFail($likeableId);
             $targetUser = $post->user;
             $title = 'Post Update';
             $body = "{$authUser->name} liked your post";
-            $route = '';
+            $route = '/comments-page';
+            $savedPost = $targetUser->savedPost;
+            $isSaved = $savedPost ? $savedPost->isSaved($post->id) : false;
             $details = [
-                'post_id' => $post->id,
-                'personal_account_id' => $authUser->id,
-                'other_account_id' => $targetUser->id
+                'post'=>[
+                    'id' => $post->id,
+                    'text' => $post->text,
+                    'likes_count' => $post->likes_count,
+                    'comments_count' => $post->comments_count,
+                    'is_liked' => $post->isLikedBy($targetUser->id),
+                     'group_id' => $post->group_id,
+                    'media' => $post->media->map(fn($media) => [
+                        'id' => $media->id,
+                        'type' => $media->type,
+                        'url' => url("storage/{$media->path}"),
+                    ]),
+                    'privacy' => $post->privacy,
+                    'is_saved' => $isSaved,
+                    'created_at' => $post->created_at,
+                    'user' => [
+                        'id' => $post->user->id,
+                        'name' => $post->user->name,
+                        'username' => $post->user->username,
+                        'avatar' => $post->user->media
+                            ? url("storage/{$post->user->media->path}")
+                            : null,
+                        'is_following' => false,
+                        'is_private' => $post->user->is_private
+                    ]
+                ]
             ];
         } elseif ($request->comment_id) {
             $likeableType = Comment::class;
             $likeableId = $request->comment_id;
             $comment = Comment::with('user.media')->findOrFail($likeableId);
+
             $targetUser = $comment->user;
             $title = "{$authUser->name} liked your comment";
             $body = "$comment->text";
-            $route = '';
+            $route = '/comments-page';
             $details = [
-                'comment_id' => $comment->id,
-                'personal_account_id' => $authUser->id,
-                'other_account_id' => $targetUser->id
+                'post_id' => $comment->getRootPostId(),
             ];
         } elseif ($request->status_id) {
             $likeableType = Status::class;
@@ -76,11 +100,9 @@ class LikeController extends Controller
             $targetUser = $status->user;
             $title = 'Status Update';
             $body = "{$authUser->name} liked your status";
-            $route = '';
+            $route = '/show-status-page';
             $details = [
-                'status_id' => $status->id,
                 'personal_account_id' => $authUser->id,
-                'other_account_id' => $targetUser->id
             ];
         } elseif ($request->ad_id) {
             $likeableType = Ad::class;
