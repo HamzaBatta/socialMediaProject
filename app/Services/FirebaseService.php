@@ -75,7 +75,7 @@ class FirebaseService
 
     public function getAccessToken()
     {
-        $credentialsPath = storage_path('app/firebase/firebase_credentials.json');
+        $credentialsPath = storage_path('app/firebase/prism-proj-firebase-adminsdk-fbsvc-caa0ff1501.json');
 
         $scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
 

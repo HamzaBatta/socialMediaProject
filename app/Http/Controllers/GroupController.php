@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Exception;
 use App\Models\Group;
 use App\Http\Requests\StoreGroupRequest;
 use App\Http\Requests\UpdateGroupRequest;
@@ -9,6 +9,7 @@ use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Services\EventPublisher;
@@ -235,8 +236,9 @@ class GroupController extends Controller
                         'user_id' => $user->id,
                         'requested_at' => now(),
                     ]);
-                    $topic = 'group_' . $group->id . '_admins';
-                    $firebase->sendTopicNotification(
+                    try{
+                        $topic = 'group_' . $group->id . '_admins';
+                        $firebase->sendTopicNotification(
                         $topic,
                         "Join Request",
                         "{$user->name} requested to join your group {$group->name}",
@@ -244,6 +246,12 @@ class GroupController extends Controller
                         ['group_id' => $group->id],
                         $user->media ? url("storage/{$user->media->path}") : null
                     );
+                    }catch(Exception $e){
+                        Log::error('Failed to send notification', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
                     return response()->json(['message' => 'sent a follow request'], 200);
                 }else {
                     $existingRequest->delete();

@@ -102,7 +102,7 @@ class LikeController extends Controller
             $body = "{$authUser->name} liked your status";
             $route = '/show-status-page';
             $details = [
-                'personal_account_id' => $authUser->id,
+                'personal_account_id' => $targetUser->id,
             ];
         } elseif ($request->ad_id) {
             $likeableType = Ad::class;
