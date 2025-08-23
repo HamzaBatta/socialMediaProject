@@ -9,10 +9,13 @@ use App\Models\Post;
 use App\Models\Status;
 use App\Models\User;
 use App\Services\FirebaseService;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Request as FollowRequest;
 use App\Services\EventPublisher;
+use Illuminate\Support\Facades\Log;
+
 class LikeController extends Controller
 {
     public function toggle(Request $request,FirebaseService $firebase)
@@ -142,16 +145,23 @@ class LikeController extends Controller
                 'likeable_id' => $likeableId,
             ]);
 
-            //send notification only if target user has a device token and is not the liker
-            if ($targetUser && $targetUser->id !== $authUser->id && $targetUser->device_token) {
-                $firebase->sendStructuredNotification(
-                    $targetUser->device_token,
-                    $title,
-                    $body,
-                    $route,
-                    $details,
-                    $authUser->media ? url("storage/{$authUser->media->path}") : null
-                );
+            try{
+                //send notification only if target user has a device token and is not the liker
+                if ($targetUser && $targetUser->id !== $authUser->id && $targetUser->device_token) {
+                    $firebase->sendStructuredNotification(
+                        $targetUser->device_token,
+                        $title,
+                        $body,
+                        $route,
+                        $details,
+                        $authUser->media ? url("storage/{$authUser->media->path}") : null
+                    );
+                }
+            }catch(Exception $e){
+                Log::error('Failed to send notification', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
 
         app(EventPublisher::class)->publishEvent('Like',[

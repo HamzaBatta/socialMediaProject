@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use Exception;
 use Illuminate\Http\Request;
 use App\Models\Request as FollowRequest;    // your Eloquent model, aliased
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use App\Services\EventPublisher;
 use App\Services\FirebaseService;
+use Illuminate\Support\Facades\Log;
 
 class FollowController extends Controller
 {
@@ -38,18 +40,25 @@ class FollowController extends Controller
                         'user_id'      => $currentUser->id,
                         'requested_at' => now(),
                     ]);
-                    // 🔔 Send follow request notification
-                    if ($targetUser->device_token) {
-                        $firebase->sendStructuredNotification(
-                            $targetUser->device_token,
-                            'New Follow Request',
-                            "{$currentUser->name} requested to follow you",
-                            '/home',
-                            [
-                                'tab_index' => '3'
-                            ],
-                            $currentUser->media ? url("storage/{$currentUser->media->path}") : null
-                        );
+                    try{
+                        // 🔔 Send follow request notification
+                        if ($targetUser->device_token) {
+                            $firebase->sendStructuredNotification(
+                                $targetUser->device_token,
+                                'New Follow Request',
+                                "{$currentUser->name} requested to follow you",
+                                '/home',
+                                [
+                                    'tab_index' => '3'
+                                ],
+                                $currentUser->media ? url("storage/{$currentUser->media->path}") : null
+                            );
+                        }
+                    }catch(Exception $e){
+                        Log::error('Failed to send notification', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
                     }
                     return response()->json(['message' => 'Follow request sent.'], 200);
                 }
@@ -67,19 +76,26 @@ class FollowController extends Controller
                 return response()->json(['message' => 'there is a database error'], 400);
             }
 
-            // 🔔 Send follow notification
-            if($targetUser->device_token){
-                $firebase->sendStructuredNotification(
-                    $targetUser->device_token,
-                    'New Follower',
-                    "{$currentUser->name} started following you",
-                    '/other-account-page',
-                    [
-                        'personal_account_id' => $targetUser->id,
-                        'other_account_id' => $currentUser->id
-                    ],
-                    $currentUser->media ? url("storage/{$currentUser->media->path}") : null
-                );
+            try{
+                // 🔔 Send follow notification
+                if($targetUser->device_token){
+                    $firebase->sendStructuredNotification(
+                        $targetUser->device_token,
+                        'New Follower',
+                        "{$currentUser->name} started following you",
+                        '/other-account-page',
+                        [
+                            'personal_account_id' => $targetUser->id,
+                            'other_account_id' => $currentUser->id
+                        ],
+                        $currentUser->media ? url("storage/{$currentUser->media->path}") : null
+                    );
+                }
+            }catch(Exception $e){
+                Log::error('Failed to send notification', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
 
             app(EventPublisher::class)->publishEvent('UserFollowed',[
@@ -220,19 +236,27 @@ class FollowController extends Controller
                     'id' => $currentUser->id,
                     'target' => $requestingUser->id,
             ]);
-            // 🔔 Send follow notification
-            if($requestingUser->device_token){
-                $firebase->sendStructuredNotification(
-                    $requestingUser->device_token,
-                    'New Follower',
-                    "{$currentUser->name} started following you",
-                    '/other-account-page',
-                    [
-                        'personal_account_id' => $requestingUser->id,
-                        'other_account_id' => $currentUser->id
-                    ],
-                    $currentUser->media ? url("storage/{$currentUser->media->path}") : null
-                );
+
+            try{
+                // 🔔 Send follow notification
+                if($requestingUser->device_token){
+                    $firebase->sendStructuredNotification(
+                        $requestingUser->device_token,
+                        'New Follower',
+                        "{$currentUser->name} started following you",
+                        '/other-account-page',
+                        [
+                            'personal_account_id' => $requestingUser->id,
+                            'other_account_id' => $currentUser->id
+                        ],
+                        $currentUser->media ? url("storage/{$currentUser->media->path}") : null
+                    );
+                }
+            }catch(Exception $e){
+                Log::error('Failed to send notification', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
 
 

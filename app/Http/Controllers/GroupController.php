@@ -40,9 +40,16 @@ class GroupController extends Controller
 
         $owner = User::findOrFail($group->owner_id);
 
-        if($owner->device_token){
-            $topic = 'group_' . $group->id . '_admins';
-            $firebase->subscribeToTopic($topic, [$owner->device_token]);
+        try{
+            if($owner->device_token){
+                $topic = 'group_' . $group->id . '_admins';
+                $firebase->subscribeToTopic($topic, [$owner->device_token]);
+            }
+        }catch(Exception $e){
+            Log::error('Failed to subscribe to topic', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
 
 
@@ -239,12 +246,12 @@ class GroupController extends Controller
                     try{
                         $topic = 'group_' . $group->id . '_admins';
                         $firebase->sendTopicNotification(
-                        $topic,
-                        "Join Request",
-                        "{$user->name} requested to join your group {$group->name}",
-                        '/group-join-requests',
-                        ['group_id' => $group->id],
-                        $user->media ? url("storage/{$user->media->path}") : null
+                            $topic,
+                            "Join Request",
+                            "{$user->name} requested to join your group {$group->name}",
+                            '/group-join-requests',
+                            ['group_id' => $group->id],
+                            $user->media ? url("storage/{$user->media->path}") : null
                     );
                     }catch(Exception $e){
                         Log::error('Failed to send notification', [
@@ -295,11 +302,19 @@ class GroupController extends Controller
                 'user'=>$user->id
             ]);
 
-            if ($wasAdmin && $user->device_token) {
-                $firebase->unsubscribeFromTopic(
-                    $user->device_token,
-                    "group_{$group->id}_admins"
-                );
+
+            try{
+                if ($wasAdmin && $user->device_token) {
+                    $firebase->unsubscribeFromTopic(
+                        $user->device_token,
+                        "group_{$group->id}_admins"
+                    );
+                }
+            }catch(Exception $e){
+                Log::error('Failed to unsubscribe to topic', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
 
 
@@ -406,16 +421,24 @@ class GroupController extends Controller
             ]);
 
             $targetUser = $joinRequest->user;
-            if ($targetUser && $targetUser->device_token) {
-                $firebase->sendStructuredNotification(
-                    $targetUser->device_token,
-                    "Join Request",
-                    "Your request to join {$group->name} is approved",
-                    '/group-page',
-                    ['group_id' => $group->id],
-                     $group->media ? url("storage/{$group->media->path}") : null
-                );
+            try{
+                if ($targetUser && $targetUser->device_token) {
+                    $firebase->sendStructuredNotification(
+                        $targetUser->device_token,
+                        "Join Request",
+                        "Your request to join {$group->name} is approved",
+                        '/group-page',
+                        ['group_id' => $group->id],
+                        $group->media ? url("storage/{$group->media->path}") : null
+                    );
+                }
+            }catch(Exception $e){
+                Log::error('Failed to send notification', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
+
 
             return response()->json(['message' => 'Request approved and user added to group.']);
         }
@@ -569,7 +592,7 @@ class GroupController extends Controller
     }
 
 
-    public function changeRole(Request $request, $groupId)
+    public function changeRole(Request $request, $groupId,FirebaseService $firebase)
     {
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -599,14 +622,21 @@ class GroupController extends Controller
             'role' => $request->role
         ]);
 
-        if($targetUser->device_token){
-            $topic = 'group_' . $group->id . '_admins';
+        try{
+            if($targetUser->device_token){
+                $topic = 'group_' . $group->id . '_admins';
 
-            if ($request->role === 'admin') {
-                app(FirebaseService::class)->subscribeToTopic($topic, [$targetUser->device_token]);
-            } elseif ($request->role === 'member') {
-                app(FirebaseService::class)->unsubscribeFromTopic($topic, [$targetUser->device_token]);
+                if ($request->role === 'admin') {
+                    $firebase->subscribeToTopic($topic, [$targetUser->device_token]);
+                } elseif ($request->role === 'member') {
+                    $firebase->unsubscribeFromTopic($topic, [$targetUser->device_token]);
+                }
             }
+        }catch(Exception $e){
+            Log::error('Failed to subscribe to||unsubscribe from topic', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
 
         return response()->json(['message' => 'Member role updated successfully']);
