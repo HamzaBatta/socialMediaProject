@@ -53,4 +53,19 @@ class Comment extends Model
 
         return $root instanceof \App\Models\Post ? $root->id : null;
     }
+    public function allReplies()
+    {
+        return $this->replies()->with('allReplies');
+    }
+
+    public function getDescendantsCount(): int
+    {
+        $count = $this->replies()->count();
+
+        foreach ($this->replies as $reply) {
+            $count += $reply->getDescendantsCount();
+        }
+
+        return $count;
+    }
 }

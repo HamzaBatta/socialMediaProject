@@ -162,8 +162,11 @@ class CommentController extends Controller
         ]);
 
         }elseif ($request->commentable_type === 'Comment') {
+            $parentComment = Comment::with('user')->find($request->commentable_id);
+            $postId = $parentComment->getRootPostId();
+            $post= Post::firstOrFail('id',$postId);
+            $post->increment('comments_count');
             try{
-                $parentComment = Comment::with('user')->find($request->commentable_id);
                 if ($parentComment && $parentComment->user && $parentComment->user->device_token &&$parentComment->user !== $authUser) {
                     $firebase->sendStructuredNotification(
                         $parentComment->user->device_token,
@@ -249,11 +252,22 @@ class CommentController extends Controller
         if ($comment->user_id !== auth()->id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        if($comment->commentable_type === 'Post'){
-            Post::where('id',$comment->commentable_id)->decrement('comments_count');
-            app(EventPublisher::class)->publishEvent('DeletedComment',[
-                'id'=>$id
+
+        // total comments to decrement (this comment + all nested replies)
+        $totalToDecrement = 1 + $comment->getDescendantsCount();
+
+        if ($comment->commentable_type === 'Post') {
+            Post::where('id', $comment->commentable_id)->decrement('comments_count', $totalToDecrement);
+
+            app(EventPublisher::class)->publishEvent('DeletedComment', [
+                'id' => $id
             ]);
+        } else if ($comment->commentable_type === 'Comment') {
+            $parentComment = Comment::find($comment->commentable_id);
+            $postId = $parentComment->getRootPostId();
+            $post = Post::findOrFail($postId);
+
+            $post->decrement('comments_count', $totalToDecrement);
         }
 
         $comment->delete();
