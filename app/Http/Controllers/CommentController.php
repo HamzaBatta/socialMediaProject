@@ -148,18 +148,6 @@ class CommentController extends Controller
                     'trace' => $e->getTraceAsString()
                 ]);
             }
-            app(EventPublisher::class)->publishEvent('CommentCreated',[
-            'id' => $comment->id,
-            'text' => $request->text,
-            'commentable_id' => $request->commentable_id,
-            'user' => [
-                    'id' => $comment->user->id,
-                    'name' => $comment->user->name,
-                    'avatar' => $comment->user->media ? url("storage/{$comment->user->media->path}") : null,
-            ],
-            'created_at' => $comment->created_at,
-
-        ]);
 
         }elseif ($request->commentable_type === 'Comment') {
             $parentComment = Comment::with('user')->find($request->commentable_id);
@@ -189,6 +177,19 @@ class CommentController extends Controller
 
         $comment->loadCount('likes')->load('user.media');
 
+        app(EventPublisher::class)->publishEvent('CommentCreated',[
+            'id' => $comment->id,
+            'text' => $request->text,
+            'commentable_type' => $request->commentable_type,
+            'commentable_id' => $request->commentable_id,
+            'user' => [
+                'id' => $comment->user->id,
+                'name' => $comment->user->name,
+                'avatar' => $comment->user->media ? url("storage/{$comment->user->media->path}") : null,
+            ],
+            'created_at' => $comment->created_at,
+
+        ]);
         return response()->json([
             'message' => 'Comment created successfully',
             'comment' => [
