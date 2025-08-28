@@ -105,7 +105,7 @@ class CommentController extends Controller
             $isSaved = $savedPost ? $savedPost->isSaved($post->id) : false;
             try{
                 // Send notification to post owner
-                if ($post->user && $post->user->device_token && $post->user !== $authUser) {
+                if ($post->user && $post->user->device_token && $post->user->id !== $authUser->id) {
                     $firebase->sendStructuredNotification(
                         $post->user->device_token,
                         "{$authUser->name} commented on your post",
@@ -167,7 +167,7 @@ class CommentController extends Controller
             $post= Post::firstOrFail('id',$postId);
             $post->increment('comments_count');
             try{
-                if ($parentComment && $parentComment->user && $parentComment->user->device_token &&$parentComment->user !== $authUser) {
+                if ($parentComment && $parentComment->user && $parentComment->user->device_token &&$parentComment->user->id !== $authUser->id) {
                     $firebase->sendStructuredNotification(
                         $parentComment->user->device_token,
                         "{$authUser->name} replied to your comment",
