@@ -60,6 +60,11 @@ class FollowController extends Controller
                             'trace' => $e->getTraceAsString()
                         ]);
                     }
+                app(EventPublisher::class)->publishEvent('FollowRequest',[
+                'id' => $currentUser->id,
+                'target' => $targetUser->id,
+                ]);
+
                     return response()->json(['message' => 'Follow request sent.'], 200);
                 }
 
