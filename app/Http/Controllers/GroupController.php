@@ -259,9 +259,18 @@ class GroupController extends Controller
                             'trace' => $e->getTraceAsString()
                         ]);
                     }
+            app(EventPublisher::class)->publishEvent('RequsetedGroup',[
+                'id'=> $group->id,
+                'user'=>$user->id
+            ]);
+
                     return response()->json(['message' => 'sent a follow request'], 200);
                 }else {
                     $existingRequest->delete();
+                    app(EventPublisher::class)->publishEvent('UnRequsetedGroup',[
+                        'id'=> $group->id,
+                        'user'=>$user->id
+                    ]);
                     return response()->json(['message' => 'unsent the follow request'], 200);
                 }
 
