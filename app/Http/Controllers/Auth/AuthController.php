@@ -38,8 +38,11 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'email' => $user->email,
         ]);
+        try{
+            Mail::to($user->email)->send(new VerifyEmails($code));
+        } catch(\Exception $e){
 
-        Mail::to($user->email)->send(new VerifyEmails($code));
+        }
 
         return response()->json([
             'message' => 'User registered successfully',
